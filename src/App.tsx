@@ -133,6 +133,18 @@ const App: React.FC = () => {
     const [editDescripcion, setEditDescripcion] = React.useState("");
     const [editConsulta, setEditConsulta] = React.useState("");
     const [editReporteAsociado, setEditReporteAsociado] = React.useState("");
+    // Versión de la aplicación (para badge inferior derecho)
+    const [appVersion, setAppVersion] = React.useState<string | null>(null);
+
+    // Cargar versión de la app al montar (usa getMeta para asegurar versión de package.json)
+    React.useEffect(() => {
+        (async () => {
+            try {
+                const meta = await window.electronAPI?.getMeta?.();
+                if (meta?.version) setAppVersion(meta.version);
+            } catch {}
+        })();
+    }, []);
 
     const handleCardClick = (id: string) => {
         console.log("Card click:", id);
@@ -330,8 +342,8 @@ const App: React.FC = () => {
 
     return (
         <div className="h-screen w-screen bg-[#1e1e1e] text-gray-200 antialiased">
-            <ErrorBoundary fallback={<div className="relative flex h-8 items-center gap-1 border-b border-black/50 bg-[#2d2d2d] px-2 select-none text-[11px] text-red-400">Menú no disponible por error.</div>}>
-                <MenuBar menus={user ? TOP_MENUS : []} user={user} />
+            <ErrorBoundary fallback={<div className="relative flex h-8 items-center gap-1 border-b border-black/50 bg-[#2d2d2d] px-2 select-none text-[11px] text-red-400">Menú no disponible por error.</div>}> 
+                <MenuBar menus={user ? TOP_MENUS : []} user={user} onLogout={() => setUser(null)} />
             </ErrorBoundary>
 
             <main className="pt-8">
@@ -574,6 +586,12 @@ const App: React.FC = () => {
                     )}
                 </div>
             </main>
+            {/* Badge de versión en esquina inferior derecha */}
+            {appVersion && (
+                <div className="fixed bottom-2 right-2 text-white/20 text-[12px] pointer-events-none select-none">
+                    v{appVersion}
+                </div>
+            )}
         </div>
     );
 };

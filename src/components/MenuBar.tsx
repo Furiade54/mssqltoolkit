@@ -3,7 +3,7 @@ import AboutModal from "./AboutModal";
 
 type DraggableStyle = React.CSSProperties & { WebkitAppRegion?: "drag" | "no-drag" };
 
-export type MenuKey = "file" | "edit" | "view" | "help";
+export type MenuKey = "file" | "view" | "help";
 
 export type TopMenu = {
 	key: MenuKey;
@@ -20,50 +20,29 @@ export type SubMenuItem = {
 };
 
 export const TOP_MENUS: TopMenu[] = [
-	{ key: "file", label: "File", ariaLabel: "File menu" },
-	{ key: "edit", label: "Edit", ariaLabel: "Edit menu" },
-	{ key: "view", label: "View", ariaLabel: "View menu" },
-	{ key: "help", label: "Help", ariaLabel: "Help menu" },
+	{ key: "file", label: "Archivo", ariaLabel: "Menú Archivo" },
+	{ key: "view", label: "Vista", ariaLabel: "Menú Vista" },
+	{ key: "help", label: "Ayuda", ariaLabel: "Menú Ayuda" },
 ];
 
 export const SUB_MENUS: Record<MenuKey, SubMenuItem[]> = {
 	file: [
-		{ id: "new-file", label: "New File", kbd: "Ctrl+N" },
-		{ id: "new-window", label: "New Window" },
-		{ id: "open-file", label: "Open File...", kbd: "Ctrl+O" },
-		{ id: "open-folder", label: "Open Folder..." },
+		{ id: "logout", label: "Cerrar sesión" },
 		{ id: "sep-1", label: "", separator: true },
-		{ id: "save", label: "Save", kbd: "Ctrl+S" },
-		{ id: "save-as", label: "Save As..." },
-		{ id: "sep-2", label: "", separator: true },
-		{ id: "exit", label: "Exit" },
-	],
-	edit: [
-		{ id: "undo", label: "Undo", kbd: "Ctrl+Z" },
-		{ id: "redo", label: "Redo", kbd: "Ctrl+Y" },
-		{ id: "sep-1", label: "", separator: true },
-		{ id: "cut", label: "Cut", kbd: "Ctrl+X" },
-		{ id: "copy", label: "Copy", kbd: "Ctrl+C" },
-		{ id: "paste", label: "Paste", kbd: "Ctrl+V" },
-		{ id: "select-all", label: "Select All", kbd: "Ctrl+A" },
+		{ id: "exit", label: "Salir" },
 	],
 	view: [
-		{ id: "reload", label: "Reload", kbd: "Ctrl+R" },
-		{ id: "force-reload", label: "Force Reload" },
-		{ id: "toggle-devtools", label: "Toggle Developer Tools", kbd: "Ctrl+Shift+I" },
-		{ id: "sep-1", label: "", separator: true },
-		{ id: "toggle-fullscreen", label: "Toggle Full Screen", kbd: "F11" },
-		{ id: "reset-zoom", label: "Reset Zoom", kbd: "Ctrl+0" },
-		{ id: "zoom-in", label: "Zoom In", kbd: "Ctrl+=" },
-		{ id: "zoom-out", label: "Zoom Out", kbd: "Ctrl-" },
+		{ id: "reload", label: "Recargar", kbd: "Ctrl+R" },
+		{ id: "toggle-devtools", label: "Herramientas de desarrollo", kbd: "Ctrl+Shift+I" },
+		{ id: "toggle-fullscreen", label: "Pantalla completa", kbd: "F11" },
 	],
 	help: [
-		{ id: "docs", label: "Documentation" },
-		{ id: "search-issues", label: "Search Issues" },
+		{ id: "docs", label: "Documentación" },
+		{ id: "report-issue", label: "Reportar problema" },
 		{ id: "sep-1", label: "", separator: true },
-		{ id: "check-updates", label: "Check for Updates" },
-		{ id: "install-update", label: "Install Update" },
-		{ id: "about", label: "About" },
+		{ id: "check-updates", label: "Buscar actualizaciones" },
+		{ id: "install-update", label: "Instalar actualización" },
+		{ id: "about", label: "Acerca de" },
 	],
 };
 
@@ -202,15 +181,17 @@ function WindowControls({
 }
 
 export function MenuBar({
-	appTitle = "Aplicacion XL",
+	appTitle = "MSSQL ToolKit",
 	menus = TOP_MENUS,
 	subMenus = SUB_MENUS,
 	user,
+	onLogout,
 }: {
 	appTitle?: string;
 	menus?: TopMenu[];
 	subMenus?: Record<MenuKey, SubMenuItem[]>;
 	user?: { username: string; avatarUrl?: string } | null;
+	onLogout?: () => void;
 }) {
 	// Estado para Auto Update
 	const [updateReady, setUpdateReady] = React.useState(false);
@@ -265,11 +246,14 @@ export function MenuBar({
 	}, [subMenus, updateReady]);
 
 	const [openMenu, setOpenMenu] = React.useState<MenuKey | null>(null);
-	const menubarRef = useOutsideClick<HTMLDivElement>(() => setOpenMenu(null));
+	const menubarRef = useOutsideClick<HTMLDivElement>(() => {
+		setOpenMenu(null);
+		setUserMenuOpen(false);
+	});
 	const [aboutOpen, setAboutOpen] = React.useState(false);
 	const [aboutInfo, setAboutInfo] = React.useState<{ version: string; createdAt: string; license: string } | null>(null);
-
-
+	// Menú contextual del usuario
+	const [userMenuOpen, setUserMenuOpen] = React.useState(false);
 
 	React.useEffect(() => {
 		function onKey(e: KeyboardEvent) {
@@ -289,12 +273,15 @@ export function MenuBar({
 		
 		// Implementar acciones del menú
 		switch (item.id) {
-			// File menu
+			// Archivo
+			case "logout":
+				onLogout?.();
+				break;
 			case "exit":
 				window.electronAPI?.exit();
 				break;
-				
-			// View menu
+			
+			// Vista
 			case "reload":
                 if (window.electronAPI?.reload) {
                     window.electronAPI.reload();
@@ -302,15 +289,9 @@ export function MenuBar({
                     window.location.reload();
                 }
 				break;
-			case "force-reload":
-                if (window.electronAPI?.forceReload) {
-                    window.electronAPI.forceReload();
-                } else {
-                    window.location.reload();
-                }
-		case "toggle-devtools":
-			window.electronAPI?.toggleDevTools?.();
-			break;
+			case "toggle-devtools":
+				window.electronAPI?.toggleDevTools?.();
+				break;
 			case "toggle-fullscreen":
 				// Alternar entre pantalla completa
 				if (document.fullscreenElement) {
@@ -319,22 +300,8 @@ export function MenuBar({
 					document.documentElement.requestFullscreen();
 				}
 				break;
-			case "reset-zoom":
-				// Restablecer zoom
-				document.body.style.zoom = "100%";
-				break;
-			case "zoom-in":
-				// Aumentar zoom
-				const currentZoomIn = parseFloat(document.body.style.zoom) || 100;
-				document.body.style.zoom = `${currentZoomIn + 10}%`;
-				break;
-			case "zoom-out":
-				// Disminuir zoom
-				const currentZoomOut = parseFloat(document.body.style.zoom) || 100;
-				document.body.style.zoom = `${Math.max(currentZoomOut - 10, 30)}%`;
-				break;
 
-			// Auto Update actions
+			// Auto Update y ayuda
 			case "check-updates":
 				window.electronAPI?.autoUpdate?.checkForUpdates?.();
 				break;
@@ -342,21 +309,15 @@ export function MenuBar({
 				if (updateReady) {
 					window.electronAPI?.autoUpdate?.quitAndInstall?.();
 				} else {
-					setUpdateStatus("No downloaded update to install");
+					setUpdateStatus("No hay actualización descargada para instalar");
 				}
 				break;
-
-			// Window controls
-			case "minimize-window":
-				window.electronAPI?.minimize();
+			case "docs":
+				window.open('https://github.com/Furiade54/mssqltoolkit#readme', '_blank');
 				break;
-			case "maximize-window":
-				window.electronAPI?.maximizeToggle();
+			case "report-issue":
+				window.open('https://github.com/Furiade54/mssqltoolkit/issues', '_blank');
 				break;
-			case "close-window":
-				window.electronAPI?.close();
-				break;
-			
 			case "about":
 				(async () => {
 					try {
@@ -414,11 +375,12 @@ export function MenuBar({
 			)}
 
 			{user && (
-				<div className="flex items-center gap-1" style={{ WebkitAppRegion: "no-drag" } as DraggableStyle}>
+				<div className="relative flex items-center gap-1" style={{ WebkitAppRegion: "no-drag" } as DraggableStyle}>
 					<button
 						type="button"
 						title={`Usuario: ${user.username}`}
 						aria-label={`Usuario: ${user.username}`}
+						onClick={() => setUserMenuOpen((v) => !v)}
 						className="grid h-6 w-8 place-items-center rounded hover:bg-white/5 ring-1 ring-white/20 focus:outline-none focus-visible:ring-1 focus-visible:ring-blue-500"
 					>
 						{user.avatarUrl ? (
@@ -436,6 +398,28 @@ export function MenuBar({
 							</svg>
 						)}
 					</button>
+					{userMenuOpen && (
+						<div role="menu" className="absolute right-0 top-7 z-50 min-w-[200px] overflow-hidden rounded-md border border-black/50 bg-[#252525] shadow-xl shadow-black/40">
+							<ul className="py-1">
+								<li>
+									<button type="button" className="group flex w-full items-center justify-between gap-4 px-3 py-1.5 text-left text-[12px] leading-none text-gray-200 hover:bg-white/5 focus:outline-none focus-visible:bg-white/10" onClick={() => window.electronAPI?.autoUpdate?.checkForUpdates?.()}>Check for Updates...</button>
+								</li>
+								<li>
+									<button type="button" className="group flex w-full items-center justify-between gap-4 px-3 py-1.5 text-left text-[12px] leading-none text-gray-200 hover:bg-white/5 focus:outline-none focus-visible:bg-white/10" onClick={() => window.open('https://github.com/Furiade54/mssqltoolkit#readme', '_blank')}>Help Document</button>
+								</li>
+								<li>
+									<button type="button" className="group flex w-full items-center justify-between gap-4 px-3 py-1.5 text-left text-[12px] leading-none text-gray-200 hover:bg-white/5 focus:outline-none focus-visible:bg-white/10" onClick={() => window.open('https://github.com/Furiade54/mssqltoolkit/issues', '_blank')}>Report Issue</button>
+								</li>
+								<li>
+									<button type="button" className="group flex w-full items-center justify-between gap-4 px-3 py-1.5 text-left text-[12px] leading-none text-gray-200 hover:bg-white/5 focus:outline-none focus-visible:bg-white/10" onClick={() => window.open('mailto:support@example.com')}>Contact Us</button>
+								</li>
+								<li aria-hidden="true" className="my-1 border-t border-white/10" />
+								<li>
+									<button type="button" className="w-full rounded bg-white/10 px-3 py-1.5 text-[12px] text-gray-200 hover:bg-white/20 focus:outline-none focus-visible:ring-1 focus-visible:ring-blue-500" onClick={() => onLogout?.()}>Log Out</button>
+								</li>
+							</ul>
+						</div>
+					)}
 				</div>
 			)}
 
