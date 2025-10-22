@@ -39,7 +39,7 @@
     "appId": "com.mssqltoolkit.app",
     "productName": "MSSQL Tool Kit",
     "directories": {
-      "output": "release-002"
+      "output": "dist-release"
     },
     "files": [
       "dist/**",
