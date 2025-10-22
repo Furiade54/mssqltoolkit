@@ -202,15 +202,17 @@ function WindowControls({
 }
 
 export function MenuBar({
-	appTitle = "Aplicacion XL",
+	appTitle = "MSSQL ToolKit",
 	menus = TOP_MENUS,
 	subMenus = SUB_MENUS,
 	user,
+	onLogout,
 }: {
 	appTitle?: string;
 	menus?: TopMenu[];
 	subMenus?: Record<MenuKey, SubMenuItem[]>;
 	user?: { username: string; avatarUrl?: string } | null;
+	onLogout?: () => void;
 }) {
 	// Estado para Auto Update
 	const [updateReady, setUpdateReady] = React.useState(false);
@@ -265,11 +267,14 @@ export function MenuBar({
 	}, [subMenus, updateReady]);
 
 	const [openMenu, setOpenMenu] = React.useState<MenuKey | null>(null);
-	const menubarRef = useOutsideClick<HTMLDivElement>(() => setOpenMenu(null));
+	const menubarRef = useOutsideClick<HTMLDivElement>(() => {
+		setOpenMenu(null);
+		setUserMenuOpen(false);
+	});
 	const [aboutOpen, setAboutOpen] = React.useState(false);
 	const [aboutInfo, setAboutInfo] = React.useState<{ version: string; createdAt: string; license: string } | null>(null);
-
-
+	// Menú contextual del usuario
+	const [userMenuOpen, setUserMenuOpen] = React.useState(false);
 
 	React.useEffect(() => {
 		function onKey(e: KeyboardEvent) {
@@ -414,11 +419,12 @@ export function MenuBar({
 			)}
 
 			{user && (
-				<div className="flex items-center gap-1" style={{ WebkitAppRegion: "no-drag" } as DraggableStyle}>
+				<div className="relative flex items-center gap-1" style={{ WebkitAppRegion: "no-drag" } as DraggableStyle}>
 					<button
 						type="button"
 						title={`Usuario: ${user.username}`}
 						aria-label={`Usuario: ${user.username}`}
+						onClick={() => setUserMenuOpen((v) => !v)}
 						className="grid h-6 w-8 place-items-center rounded hover:bg-white/5 ring-1 ring-white/20 focus:outline-none focus-visible:ring-1 focus-visible:ring-blue-500"
 					>
 						{user.avatarUrl ? (
@@ -436,6 +442,28 @@ export function MenuBar({
 							</svg>
 						)}
 					</button>
+					{userMenuOpen && (
+						<div role="menu" className="absolute right-0 top-7 z-50 min-w-[200px] overflow-hidden rounded-md border border-black/50 bg-[#252525] shadow-xl shadow-black/40">
+							<ul className="py-1">
+								<li>
+									<button type="button" className="group flex w-full items-center justify-between gap-4 px-3 py-1.5 text-left text-[12px] leading-none text-gray-200 hover:bg-white/5 focus:outline-none focus-visible:bg-white/10" onClick={() => window.electronAPI?.autoUpdate?.checkForUpdates?.()}>Check for Updates...</button>
+								</li>
+								<li>
+									<button type="button" className="group flex w-full items-center justify-between gap-4 px-3 py-1.5 text-left text-[12px] leading-none text-gray-200 hover:bg-white/5 focus:outline-none focus-visible:bg-white/10" onClick={() => window.open('https://github.com/Furiade54/mssqltoolkit#readme', '_blank')}>Help Document</button>
+								</li>
+								<li>
+									<button type="button" className="group flex w-full items-center justify-between gap-4 px-3 py-1.5 text-left text-[12px] leading-none text-gray-200 hover:bg-white/5 focus:outline-none focus-visible:bg-white/10" onClick={() => window.open('https://github.com/Furiade54/mssqltoolkit/issues', '_blank')}>Report Issue</button>
+								</li>
+								<li>
+									<button type="button" className="group flex w-full items-center justify-between gap-4 px-3 py-1.5 text-left text-[12px] leading-none text-gray-200 hover:bg-white/5 focus:outline-none focus-visible:bg-white/10" onClick={() => window.open('mailto:support@example.com')}>Contact Us</button>
+								</li>
+								<li aria-hidden="true" className="my-1 border-t border-white/10" />
+								<li>
+									<button type="button" className="w-full rounded bg-white/10 px-3 py-1.5 text-[12px] text-gray-200 hover:bg-white/20 focus:outline-none focus-visible:ring-1 focus-visible:ring-blue-500" onClick={() => onLogout?.()}>Log Out</button>
+								</li>
+							</ul>
+						</div>
+					)}
 				</div>
 			)}
 
