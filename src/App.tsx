@@ -341,12 +341,12 @@ const App: React.FC = () => {
     }
 
     return (
-        <div className="h-screen w-screen bg-[#1e1e1e] text-gray-200 antialiased">
+        <div className="h-screen w-screen overflow-hidden bg-[#1e1e1e] text-gray-200 antialiased">
             <ErrorBoundary fallback={<div className="relative flex h-8 items-center gap-1 border-b border-black/50 bg-[#2d2d2d] px-2 select-none text-[11px] text-red-400">Menú no disponible por error.</div>}> 
                 <MenuBar menus={user ? TOP_MENUS : []} user={user} onLogout={() => setUser(null)} />
             </ErrorBoundary>
 
-            <main className="pt-8">
+            <main className="pt-0">
                 {!user ? (
                     <div className="flex items-center justify-center" style={{ height: 'calc(100vh - 2rem)' }}>
                         <ErrorBoundary fallback={
