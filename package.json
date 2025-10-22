@@ -1,7 +1,7 @@
 {
   "name": "mssql-tool-kit",
   "private": true,
-  "version": "0.0.1",
+  "version": "0.0.2",
   "type": "module",
   "main": "electron-main.cjs",
   "scripts": {
@@ -39,7 +39,7 @@
     "appId": "com.mssqltoolkit.app",
     "productName": "MSSQL Tool Kit",
     "directories": {
-      "output": "release"
+      "output": "release-002"
     },
     "files": [
       "dist/**",

@@ -386,11 +386,6 @@ export function MenuBar({
 		>
 			<div className="mr-2 truncate text-[11px] leading-none text-gray-400" style={{ WebkitAppRegion: "no-drag" } as DraggableStyle }>
 				{appTitle}
-				{updateStatus && (
-					<span className="ml-2 text-[11px] text-gray-300">
-						{updateStatus}{typeof updateProgress === 'number' ? ` (${Math.round(updateProgress)}%)` : ""}
-					</span>
-				)}
 			</div>
 
 			<nav className="relative flex items-stretch" style={{ WebkitAppRegion: "no-drag" } as DraggableStyle }>
@@ -411,6 +406,12 @@ export function MenuBar({
 			</nav>
 
 			<div className="mx-1 h-full flex-1" />
+
+			{updateStatus && (
+				<div className="mr-2 truncate text-[11px] leading-none text-gray-300" style={{ WebkitAppRegion: "no-drag" } as DraggableStyle }>
+					{updateStatus}{typeof updateProgress === 'number' ? ` (${Math.round(updateProgress)}%)` : ""}
+				</div>
+			)}
 
 			{user && (
 				<div className="flex items-center gap-1" style={{ WebkitAppRegion: "no-drag" } as DraggableStyle}>

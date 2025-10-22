@@ -2,10 +2,13 @@
 node_modules/
 dist/
 release/
+release-002/
 out/
+out-release/
 build/
 .cache/
 .temp/
+dist-release/
 
 # Electron builder auto-update artifacts (kept out of VCS)
 latest.yml
