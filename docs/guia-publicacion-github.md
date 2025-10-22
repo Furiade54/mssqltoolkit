@@ -150,25 +150,37 @@ Usarás GitHub Releases en el repositorio `Furiade54/mssqltoolkit`:
   - La app consultará `AUTO_UPDATE_URL` (provider `generic`) o Releases (provider `github`).
   - Se verán logs en `electron-log` y los eventos se reflejarán en la UI (MenuBar → estado/progreso).
 
-## 9) Troubleshooting
+## 9) Requisitos críticos para Windows (NSIS + UAC)
+- Para que las actualizaciones se instalen en segundo plano, el instalador debe ser **one-click**:
+  - `build.nsis.oneClick: true` (ya aplicado).
+- Si necesitas permisos de administrador (UAC), usa instalación **por máquina**:
+  - `build.nsis.perMachine: true` (ya aplicado). Esto instalará en `C:\Program Files` y solicitará elevación UAC.
+- Cambiar de `perUser` a `perMachine` puede requerir desinstalar previamente la versión anterior para evitar duplicados de instalación.
+- Sin **firma de código**, Windows SmartScreen puede bloquear o mostrar advertencias. Para minimizar bloqueos:
+  - Usa un certificado de firma y configura `CSC_LINK`/`CSC_KEY_PASSWORD` o `build.win.certificateFile/certificatePassword`.
+  - Con certificado, las actualizaciones silenciosas son más confiables.
+
+## 10) Troubleshooting
 - `permission denied` al subir a servidor: revisa permisos y rutas.
 - `404` al descargar `latest.yml`: verifica la URL en `AUTO_UPDATE_URL` y que el archivo existe.
 - Token de GitHub inválido: regenera el `GH_TOKEN` y revisa scopes.
 - Rama principal distinta a `main`: ajusta `git push -u origin <tu_rama>`.
 - HMR de Vite molestando: reinicia `npm run electron:dev` si hay inconsistencia por cambios en exports.
+- Cambié `oneClick` a `true` y ahora no instala: asegúrate de desinstalar la versión anterior si era per-user.
 
-## 10) CI/CD (opcional)
+## 11) CI/CD (opcional)
 - Puedes usar GitHub Actions para:
   - Construir en Windows (necesario para NSIS) y publicar a Releases.
   - Subir a un servidor `generic` mediante rsync/ftp/acciones personalizadas.
 - Variables típicas en CI: `GH_TOKEN`, `AUTO_UPDATE_URL`.
 
-## 11) Resumen rápido
+## 12) Resumen rápido
 1. Crea repo en GitHub y añade remoto.
 2. `git add . && git commit -m "init" && git push -u origin main`.
 3. Bump de versión (`npm version patch`) y push tags.
 4. Elige provider:
    - `generic`: sube `latest.yml` y artefactos al mismo directorio del servidor.
    - `github`: configura `publish` con `github` y `GH_TOKEN`.
-5. Ejecuta `npm run release:win`.
-6. Verifica que la app en producción detecta la actualización y muestra progreso en la UI.
+5. Usa NSIS one-click y, si necesitas UAC, per-machine.
+6. Ejecuta `npm run release:win`.
+7. Verifica que la app en producción detecta la actualización, solicita UAC si corresponde y reinicia tras instalar.

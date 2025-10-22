@@ -55,10 +55,10 @@
       "artifactName": "${productName}-${version}-Setup.${ext}"
     },
     "nsis": {
-      "oneClick": false,
-      "perMachine": false,
+      "oneClick": true,
+      "perMachine": true,
       "allowElevation": true,
-      "allowToChangeInstallationDirectory": true,
+      "allowToChangeInstallationDirectory": false,
       "createDesktopShortcut": true,
       "shortcutName": "MSSQL Tool Kit"
     },
