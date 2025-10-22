@@ -347,8 +347,8 @@ const App: React.FC = () => {
             </ErrorBoundary>
 
             <main className="pt-8">
-                <div className="mx-auto max-w-6xl px-4">
-                    {!user ? (
+                {!user ? (
+                    <div className="flex items-center justify-center" style={{ height: 'calc(100vh - 2rem)' }}>
                         <ErrorBoundary fallback={
                             <div className="grid place-items-center rounded border border-white/10 bg-[#2a2a2a] p-4">
                                 <div className="text-red-400">Login no disponible por error.</div>
@@ -363,7 +363,9 @@ const App: React.FC = () => {
                         }>
                             <LoginForm onLogin={(data) => setUser({ username: data.username })} />
                         </ErrorBoundary>
-                    ) : (
+                    </div>
+                ) : (
+                    <div className="mx-auto max-w-6xl px-4">
                         <>
                             <div className="mb-4 flex items-center justify-start">
                                 <h1 className="text-xl font-semibold">Bienvenido{user?.username ? `, ${user.username}` : ""}</h1>
@@ -583,8 +585,8 @@ const App: React.FC = () => {
                                 </div>
                             )}
                         </>
-                    )}
-                </div>
+                    </div>
+                )}
             </main>
             {/* Badge de versión en esquina inferior derecha */}
             {appVersion && (
