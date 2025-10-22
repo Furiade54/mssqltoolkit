@@ -117,7 +117,7 @@ Usarás GitHub Releases en el repositorio `Furiade54/mssqltoolkit`:
         "provider": "github",
         "owner": "Furiade54",
         "repo": "mssqltoolkit",
-        "releaseType": "draft"
+        "releaseType": "release"  
       }]
     }
   }

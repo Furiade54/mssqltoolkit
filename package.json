@@ -67,7 +67,7 @@
         "provider": "github",
         "owner": "Furiade54",
         "repo": "mssqltoolkit",
-        "releaseType": "draft"
+        "releaseType": "release"
       }
     ]
   }
