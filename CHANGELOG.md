@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.0.10 — Instalación con UAC al actualizar
+
+- Changed
+  - `quitAndInstall` ahora invoca el instalador en modo no silencioso (`isSilent: false`) para solicitar elevación UAC cuando corresponda.
+  - Flujo de actualización ajustado en `MenuBar` para pasar opciones explícitas.
+
+- Tech
+  - IPC principal `autoUpdate:quitAndInstall` acepta opciones `{ isSilent, isForceRunAfter }`.
+  - `preload.cjs` reenvía opciones y `global.d.ts` actualiza tipos.
+
+- Release
+  - Bump de versión a `v0.0.10`.
+
 ## v0.0.9 — Botón de actualización y menús en español
 
 - Changed

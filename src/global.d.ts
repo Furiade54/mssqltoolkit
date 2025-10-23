@@ -14,7 +14,7 @@ declare global {
 			getMeta: () => Promise<{ version: string; license: string; createdAt: string }>;
 			autoUpdate?: {
 				checkForUpdates: () => Promise<any>;
-				quitAndInstall: () => Promise<any>;
+				quitAndInstall: (options?: { isSilent?: boolean; isForceRunAfter?: boolean }) => Promise<any>;
 				onChecking: (cb: (payload?: any) => void) => () => void;
 				onAvailable: (cb: (info: any) => void) => () => void;
 				onNotAvailable: (cb: (info?: any) => void) => () => void;

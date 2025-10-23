@@ -254,6 +254,9 @@ export function MenuBar({
 	const [aboutInfo, setAboutInfo] = React.useState<{ version: string; createdAt: string; license: string } | null>(null);
 	// Menú contextual del usuario
 	const [userMenuOpen, setUserMenuOpen] = React.useState(false);
+	// Derivados para el estado del botón de actualización
+	const isDownloading = updateStatus === "Downloading update..." || (typeof updateProgress === 'number' && updateProgress < 100);
+	const ctaLabel = updateReady ? "Restart to Update" : isDownloading ? `Downloading ${Math.round(updateProgress ?? 0)}%` : "";
 
 	React.useEffect(() => {
 		function onKey(e: KeyboardEvent) {
@@ -307,7 +310,7 @@ export function MenuBar({
 				break;
 			case "install-update":
 				if (updateReady) {
-					window.electronAPI?.autoUpdate?.quitAndInstall?.();
+					window.electronAPI?.autoUpdate?.quitAndInstall?.({ isSilent: false, isForceRunAfter: true });
 				} else {
 					setUpdateStatus("No hay actualización descargada para instalar");
 				}
@@ -368,11 +371,36 @@ export function MenuBar({
 
 			<div className="mx-1 h-full flex-1" />
 
-			{updateStatus && (
-				<div className="mr-2 truncate text-[11px] leading-none text-gray-300" style={{ WebkitAppRegion: "no-drag" } as DraggableStyle }>
-					{updateStatus}{typeof updateProgress === 'number' ? ` (${Math.round(updateProgress)}%)` : ""}
+			<div className="flex items-center gap-2" style={{ WebkitAppRegion: "no-drag" } as DraggableStyle }>
+					{updateStatus && (
+						<div className="mr-2 truncate text-[11px] leading-none text-gray-300">
+							{updateStatus}{typeof updateProgress === 'number' ? ` (${Math.round(updateProgress)}%)` : ""}
+						</div>
+					)}
+					<button
+						type="button"
+						disabled={isDownloading && !updateReady}
+						onClick={() => updateReady ? window.electronAPI?.autoUpdate?.quitAndInstall?.({ isSilent: false, isForceRunAfter: true }) : window.electronAPI?.autoUpdate?.checkForUpdates?.()}
+						className={`flex items-center gap-2 rounded-full px-2 py-1 text-[12px] ${updateReady ? 'bg-green-600/30 text-green-200 hover:bg-green-600/40' : 'bg-white/10 text-gray-200 hover:bg-white/20'} focus:outline-none focus-visible:ring-1 focus-visible:ring-blue-500`}
+						aria-label={ctaLabel}
+						title={ctaLabel}
+					>
+						<span className={`grid h-4 w-4 place-items-center rounded-full ${updateReady ? 'bg-green-500/40' : 'bg-white/20'}`}>
+							{updateReady ? (
+								<svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2">
+									<path d="M4 4v6h6" />
+									<path d="M20 12a8 8 0 1 1-8-8" />
+								</svg>
+							) : (
+								<svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2">
+									<path d="M12 5v14" />
+									<path d="M5 12l7 7 7-7" />
+								</svg>
+							)}
+						</span>
+						{ctaLabel}
+					</button>
 				</div>
-			)}
 
 			{user && (
 				<div className="relative flex items-center gap-1" style={{ WebkitAppRegion: "no-drag" } as DraggableStyle}>
@@ -402,20 +430,17 @@ export function MenuBar({
 						<div role="menu" className="absolute right-0 top-7 z-50 min-w-[200px] overflow-hidden rounded-md border border-black/50 bg-[#252525] shadow-xl shadow-black/40">
 							<ul className="py-1">
 								<li>
-									<button type="button" className="group flex w-full items-center justify-between gap-4 px-3 py-1.5 text-left text-[12px] leading-none text-gray-200 hover:bg-white/5 focus:outline-none focus-visible:bg-white/10" onClick={() => window.electronAPI?.autoUpdate?.checkForUpdates?.()}>Check for Updates...</button>
+									<button type="button" className="group flex w-full items-center justify-between gap-4 px-3 py-1.5 text-left text-[12px] leading-none text-gray-200 hover:bg-white/5 focus:outline-none focus-visible:bg-white/10" onClick={() => window.open('https://github.com/Furiade54/mssqltoolkit#readme', '_blank')}>Documento de ayuda</button>
 								</li>
 								<li>
-									<button type="button" className="group flex w-full items-center justify-between gap-4 px-3 py-1.5 text-left text-[12px] leading-none text-gray-200 hover:bg-white/5 focus:outline-none focus-visible:bg-white/10" onClick={() => window.open('https://github.com/Furiade54/mssqltoolkit#readme', '_blank')}>Help Document</button>
+									<button type="button" className="group flex w-full items-center justify-between gap-4 px-3 py-1.5 text-left text-[12px] leading-none text-gray-200 hover:bg-white/5 focus:outline-none focus-visible:bg-white/10" onClick={() => window.open('https://github.com/Furiade54/mssqltoolkit/issues', '_blank')}>Reportar problema</button>
 								</li>
 								<li>
-									<button type="button" className="group flex w-full items-center justify-between gap-4 px-3 py-1.5 text-left text-[12px] leading-none text-gray-200 hover:bg-white/5 focus:outline-none focus-visible:bg-white/10" onClick={() => window.open('https://github.com/Furiade54/mssqltoolkit/issues', '_blank')}>Report Issue</button>
-								</li>
-								<li>
-									<button type="button" className="group flex w-full items-center justify-between gap-4 px-3 py-1.5 text-left text-[12px] leading-none text-gray-200 hover:bg-white/5 focus:outline-none focus-visible:bg-white/10" onClick={() => window.open('mailto:support@example.com')}>Contact Us</button>
+									<button type="button" className="group flex w-full items-center justify-between gap-4 px-3 py-1.5 text-left text-[12px] leading-none text-gray-200 hover:bg-white/5 focus:outline-none focus-visible:bg-white/10" onClick={() => window.open('mailto:support@example.com')}>Contáctanos</button>
 								</li>
 								<li aria-hidden="true" className="my-1 border-t border-white/10" />
 								<li>
-									<button type="button" className="w-full rounded bg-white/10 px-3 py-1.5 text-[12px] text-gray-200 hover:bg-white/20 focus:outline-none focus-visible:ring-1 focus-visible:ring-blue-500" onClick={() => onLogout?.()}>Log Out</button>
+									<button type="button" className="w-full rounded bg-white/10 px-3 py-1.5 text-[12px] text-gray-200 hover:bg-white/20 focus:outline-none focus-visible:ring-1 focus-visible:ring-blue-500" onClick={() => onLogout?.()}>Cerrar sesión</button>
 								</li>
 							</ul>
 						</div>
