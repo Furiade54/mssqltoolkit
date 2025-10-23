@@ -27,9 +27,9 @@ declare global {
 			updateMSSQLServer: (index: number, info: { name: string; ip: string; port: string; user: string; password: string }) => Promise<{ ok: boolean; error?: string }>;
 			deleteMSSQLServer: (index: number) => Promise<{ ok: boolean; error?: string }>;
 			testMSSQLConnection: (info: { ip?: string; server?: string; port?: string | number; user?: string; password?: string }) => Promise<{ ok: boolean; error?: string }>;
-            validateMSSQLUser: (creds: { username: string; password: string; encrypt?: boolean; serverIndex?: number }) => Promise<{ ok: boolean; error?: string }>;
-            runMSSQLQuery: (payload: { sqlText: string; database?: string; encrypt?: boolean; serverIndex?: number }) => Promise<{ ok: boolean; rows?: any[]; columns?: string[]; count?: number; error?: string }>;
-            saveMSSQLConsulta: (payload: { codigoAplicacion?: string; descripcion: string; consulta: string; reporteAsociado?: string | null; encrypt?: boolean; serverIndex?: number }) => Promise<{ ok: boolean; inserted?: boolean; updated?: boolean; error?: string }>;
+            validateMSSQLUser: (creds: { username: string; password: string; encrypt?: boolean; serverIndex?: number; serverIp?: string }) => Promise<{ ok: boolean; error?: string }>;
+            runMSSQLQuery: (payload: { sqlText: string; database?: string; encrypt?: boolean; serverIndex?: number; serverIp?: string }) => Promise<{ ok: boolean; rows?: any[]; columns?: string[]; count?: number; error?: string }>;
+            saveMSSQLConsulta: (payload: { codigoAplicacion?: string; descripcion: string; consulta: string; reporteAsociado?: string | null; encrypt?: boolean; serverIndex?: number; serverIp?: string }) => Promise<{ ok: boolean; inserted?: boolean; updated?: boolean; error?: string }>;
 		};
 	}
 }

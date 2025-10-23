@@ -277,6 +277,17 @@ function readServersList() {
     }
 }
 
+// Find server index by IP (ID = "server-ip")
+function findServerIndexByIp(ip, servers) {
+    const needle = String(ip || "").trim();
+    if (!needle) return -1;
+    const list = Array.isArray(servers) ? servers : [];
+    for (let i = 0; i < list.length; i++) {
+        if (String(list[i]?.ip || "").trim() === needle) return i;
+    }
+    return -1;
+}
+
 ipcMain.handle("mssql:getServers", () => {
     return readServersList();
 });
@@ -395,12 +406,18 @@ ipcMain.handle("mssql:testConnection", async (_event, info) => {
 
 // IPC: MSSQL validate user credentials in Opciones database
 ipcMain.handle("mssql:validateUser", async (_event, creds) => {
-    const { username, password, encrypt = false, serverIndex } = creds || {};
+    const { username, password, encrypt = false, serverIndex, serverIp } = creds || {};
     const servers = readServersList();
     if (!servers || servers.length === 0) {
         return { ok: false, error: "No hay servidor MSSQL configurado. Agrega uno primero." };
     }
-    let idx = typeof serverIndex === "number" ? serverIndex : servers.length - 1;
+    let idx = -1;
+    if (serverIp) {
+        idx = findServerIndexByIp(serverIp, servers);
+    }
+    if (!Number.isFinite(idx) || idx < 0) {
+        idx = typeof serverIndex === "number" ? serverIndex : servers.length - 1;
+    }
     if (!Number.isFinite(idx) || idx < 0 || idx >= servers.length) idx = servers.length - 1;
     const target = servers[idx];
     const server = String(target?.ip || "").trim();
@@ -431,6 +448,9 @@ ipcMain.handle("mssql:validateUser", async (_event, creds) => {
         );
         await sql.close();
         const ok = Array.isArray(result?.recordset) && result.recordset.length > 0;
+        if (ok) {
+            activeServerIndex = idx; // track active server on successful login
+        }
         return ok ? { ok: true } : { ok: false, error: "Usuario o contraseña inválidos." };
     } catch (e) {
         try { await sql.close(); } catch {}
@@ -439,9 +459,9 @@ ipcMain.handle("mssql:validateUser", async (_event, creds) => {
     }
 });
 
-// IPC: MSSQL run arbitrary query using saved server (defaults to last)
+// IPC: MSSQL run arbitrary query using saved server (defaults to active)
 ipcMain.handle("mssql:runQuery", async (_event, payload) => {
-    const { sqlText, database = "Opciones", encrypt = false, serverIndex } = payload || {};
+    const { sqlText, database = "Opciones", encrypt = false, serverIndex, serverIp } = payload || {};
     if (!sqlText || typeof sqlText !== "string" || !sqlText.trim()) {
         return { ok: false, error: "SQL inválido o vacío" };
     }
@@ -449,20 +469,26 @@ ipcMain.handle("mssql:runQuery", async (_event, payload) => {
     if (!servers || servers.length === 0) {
         return { ok: false, error: "No hay servidor MSSQL configurado. Agrega uno primero." };
     }
-    let idx = typeof serverIndex === "number" ? serverIndex : servers.length - 1;
+    let idx = -1;
+    if (serverIp) {
+        idx = findServerIndexByIp(serverIp, servers);
+    }
+    if (!Number.isFinite(idx) || idx < 0) {
+        idx = typeof serverIndex === "number" ? serverIndex : (Number.isFinite(activeServerIndex) && activeServerIndex >= 0 ? activeServerIndex : servers.length - 1);
+    }
     if (!Number.isFinite(idx) || idx < 0 || idx >= servers.length) idx = servers.length - 1;
+
     const target = servers[idx];
     const server = String(target?.ip || "").trim();
     const portNum = target?.port !== undefined && target?.port !== null ? Number(target.port) : 1433;
     const user = String(target?.user || "").trim();
     const pass = String(target?.password || "").trim();
 
-    const config = {
+    const baseConfig = {
         server,
         port: Number.isFinite(portNum) && portNum > 0 ? portNum : 1433,
         user,
         password: pass,
-        database: String(database || "master").trim(),
         connectionTimeout: 15000,
         requestTimeout: 30000,
         options: {
@@ -471,10 +497,23 @@ ipcMain.handle("mssql:runQuery", async (_event, payload) => {
         },
     };
 
-    log.info(`[mssql:runQuery] server=${server} port=${config.port} db=${config.database} idx=${idx}`);
+    const dbName = String(database || "master").trim();
+    log.info(`[mssql:runQuery] server=${server} port=${baseConfig.port} db=${dbName} idx=${idx}`);
 
     try {
-        await sql.connect(config);
+        // Check database existence on target server using master
+        await sql.connect({ ...baseConfig, database: "master" });
+        const req1 = new sql.Request();
+        req1.input("db", sql.NVarChar, dbName);
+        const existsRes = await req1.query("SELECT TOP 1 name FROM sys.databases WHERE name = @db");
+        await sql.close();
+        const exists = Array.isArray(existsRes?.recordset) && existsRes.recordset.length > 0;
+        if (!exists) {
+            return { ok: false, error: `Base de datos '${dbName}' no existe en ${server}` };
+        }
+
+        // Connect to target database and run query
+        await sql.connect({ ...baseConfig, database: dbName });
         const result = await sql.query(sqlText);
         await sql.close();
         const rows = Array.isArray(result?.recordset) ? result.recordset : [];
@@ -489,7 +528,7 @@ ipcMain.handle("mssql:runQuery", async (_event, payload) => {
 
 // IPC: MSSQL save or update consulta into Opciones.dbo.GENConsultas
 ipcMain.handle("mssql:saveConsulta", async (_event, payload) => {
-    const { codigoAplicacion = "8", descripcion, consulta, reporteAsociado = null, encrypt = false, serverIndex } = payload || {};
+    const { codigoAplicacion = "8", descripcion, consulta, reporteAsociado = null, encrypt = false, serverIndex, serverIp } = payload || {};
     const cod = String(codigoAplicacion || "").trim();
     const desc = String(descripcion || "").trim();
     const sqlText = typeof consulta === "string" ? consulta : String(consulta ?? "");
@@ -503,8 +542,15 @@ ipcMain.handle("mssql:saveConsulta", async (_event, payload) => {
     if (!servers || servers.length === 0) {
         return { ok: false, error: "No hay servidor MSSQL configurado. Agrega uno primero." };
     }
-    let idx = typeof serverIndex === "number" ? serverIndex : servers.length - 1;
+    let idx = -1;
+    if (serverIp) {
+        idx = findServerIndexByIp(serverIp, servers);
+    }
+    if (!Number.isFinite(idx) || idx < 0) {
+        idx = typeof serverIndex === "number" ? serverIndex : (Number.isFinite(activeServerIndex) && activeServerIndex >= 0 ? activeServerIndex : servers.length - 1);
+    }
     if (!Number.isFinite(idx) || idx < 0 || idx >= servers.length) idx = servers.length - 1;
+
     const target = servers[idx];
     const server = String(target?.ip || "").trim();
     const portNum = target?.port !== undefined && target?.port !== null ? Number(target.port) : 1433;
