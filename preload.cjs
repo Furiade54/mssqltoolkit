@@ -13,7 +13,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
     // AutoUpdate API (seguro)
     autoUpdate: {
         checkForUpdates: () => ipcRenderer.invoke("autoUpdate:check"),
-        quitAndInstall: () => ipcRenderer.invoke("autoUpdate:quitAndInstall"),
+        quitAndInstall: (options) => ipcRenderer.invoke("autoUpdate:quitAndInstall", options),
         onChecking: (cb) => {
             const h = (_e, payload) => cb?.(payload);
             ipcRenderer.on("autoUpdate:checking", h);

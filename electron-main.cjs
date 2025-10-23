@@ -173,9 +173,11 @@ ipcMain.handle("autoUpdate:check", async () => {
   }
 });
 
-ipcMain.handle("autoUpdate:quitAndInstall", async () => {
+ipcMain.handle("autoUpdate:quitAndInstall", async (_event, options) => {
   try {
-    autoUpdater.quitAndInstall();
+    const isSilent = options?.isSilent ?? false;
+    const isForceRunAfter = options?.isForceRunAfter ?? true;
+    autoUpdater.quitAndInstall(isSilent, isForceRunAfter);
     return { ok: true };
   } catch (e) {
     log.error("Error en quitAndInstall:", e);

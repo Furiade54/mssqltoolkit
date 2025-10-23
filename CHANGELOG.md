@@ -2,6 +2,32 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.0.10 — Instalación con UAC al actualizar
+
+- Changed
+  - `quitAndInstall` ahora invoca el instalador en modo no silencioso (`isSilent: false`) para solicitar elevación UAC cuando corresponda.
+  - Flujo de actualización ajustado en `MenuBar` para pasar opciones explícitas.
+
+- Tech
+  - IPC principal `autoUpdate:quitAndInstall` acepta opciones `{ isSilent, isForceRunAfter }`.
+  - `preload.cjs` reenvía opciones y `global.d.ts` actualiza tipos.
+
+- Release
+  - Bump de versión a `v0.0.10`.
+
+## v0.0.9 — Botón de actualización y menús en español
+
+- Changed
+  - Traducción de opciones del menú de usuario al español.
+  - Remoción de “Check for Updates...” del menú de usuario; acciones de actualización centralizadas.
+  - Añadido botón CTA de auto-actualización en la barra superior con estados dinámicos.
+
+- Fixed
+  - Ajustes menores en `MenuBar.tsx` relacionados con estados y render.
+
+- Release
+  - Bump de versión a `v0.0.9`.
+
 ## v0.0.3 — Reestructuración de menús y mejoras UI
 
 - Added
