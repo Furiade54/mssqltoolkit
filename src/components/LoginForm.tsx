@@ -67,114 +67,136 @@ export default function LoginForm({ onLogin }: { onLogin?: (data: LoginData) => 
     }
 
     return (
-        <div className="w-full max-w-[380px] rounded-md border border-black/50 bg-[#2d2d2d] p-4 shadow-xl">
-            <h1 className="mb-3 text-center text-lg font-semibold">Iniciar sesión</h1>
-            <form onSubmit={handleSubmit} className="space-y-3" noValidate>
-                <div>
-                    <label htmlFor="server-select" className="mb-1 block text-[13px] text-gray-300">
-                        Servidor
-                    </label>
-                    <div className="flex items-center gap-2">
-                        <select
-                            id="server-select"
-                            value={servers.length === 0 ? "" : String(serverIndex)}
-                            onChange={(e) => setServerIndex(Number(e.target.value))}
-                            className="w-full rounded border border-white/10 bg-[#1f1f1f] px-3 py-2 text-[14px] text-gray-100 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-50"
-                            disabled={servers.length === 0}
-                        >
-                            {servers.map((s, i) => (
-                                <option key={`${s.ip}:${s.port}:${i}`} value={i}>
-                                    {(s.name?.trim() ? s.name : s.ip) + `:${s.port || "1433"}`}
-                                </option>
-                            ))}
-                        </select>
+        <div className="w-full max-w-[900px] rounded-md border border-black/50 bg-[#2d2d2d] shadow-xl overflow-hidden">
+            <div className="grid grid-cols-1 md:grid-cols-2">
+                <div className="p-4">
+                    <h1 className="mb-3 text-center text-lg font-semibold">Iniciar sesión</h1>
+                    <form onSubmit={handleSubmit} className="space-y-3" noValidate>
+                        <div>
+                            <label htmlFor="server-select" className="mb-1 block text-[13px] text-gray-300">
+                                Servidor
+                            </label>
+                            <div className="flex items-center gap-2">
+                                <select
+                                    id="server-select"
+                                    value={servers.length === 0 ? "" : String(serverIndex)}
+                                    onChange={(e) => setServerIndex(Number(e.target.value))}
+                                    className="w-full rounded border border-white/10 bg-[#1f1f1f] px-3 py-2 text-[14px] text-gray-100 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-50"
+                                    disabled={servers.length === 0}
+                                >
+                                    {servers.map((s, i) => (
+                                        <option key={`${s.ip}:${s.port}:${i}`} value={i}>
+                                            {(s.name?.trim() ? s.name : s.ip) + `:${s.port || "1433"}`}
+                                        </option>
+                                    ))}
+                                </select>
+                                <button
+                                    type="button"
+                                    onClick={() => setAddServerOpen(true)}
+                                    className="whitespace-nowrap rounded bg-white/10 px-2 py-1 text-[12px] text-gray-200 hover:bg-white/20 focus:outline-none focus-visible:ring-1 focus-visible:ring-blue-500"
+                                >
+                                    AddServer
+                                </button>
+                            </div>
+                            {servers.length === 0 && (
+                                <p className="mt-1 text-[12px] text-white/10">No hay servidores guardados. Usa "AddServer" para agregar uno.</p>
+                            )}
+                        </div>
+                        <div>
+                            <label htmlFor="username" className="mb-1 block text-[13px] text-gray-300">
+                                Usuario
+                            </label>
+                            <input
+                                id="username"
+                                type="text"
+                                autoComplete="username"
+                                value={username}
+                                onChange={(e) => setUsername(e.target.value)}
+                                className="w-full rounded border border-white/10 bg-[#1f1f1f] px-3 py-2 text-[14px] text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                placeholder="LUIS43"
+                            />
+                            {errors.username && (
+                                <p className="mt-1 text-[12px] text-red-400">{errors.username}</p>
+                            )}
+                        </div>
+
+                        <div>
+                            <label htmlFor="password" className="mb-1 block text-[13px] text-gray-300">
+                                Contraseña
+                            </label>
+                            <div className="relative">
+                                <input
+                                    id="password"
+                                    type={showPassword ? "text" : "password"}
+                                    autoComplete="current-password"
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                    className="w-full rounded border border-white/10 bg-[#1f1f1f] px-3 py-2 pr-20 text-[14px] text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                    placeholder="••••••"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPassword((s) => !s)}
+                                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded bg-white/10 px-2 py-1 text-[12px] text-gray-200 hover:bg-white/20 focus:outline-none focus-visible:ring-1 focus-visible:ring-blue-500"
+                                    aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+                                >
+                                    {showPassword ? "Ocultar" : "Mostrar"}
+                                </button>
+                            </div>
+                            {errors.password && (
+                                <p className="mt-1 text-[12px] text-red-400">{errors.password}</p>
+                            )}
+                        </div>
+
+                        <div className="flex items-center justify-between">
+                            <label className="flex items-center gap-2 text-[13px] text-gray-300">
+                                <input
+                                    type="checkbox"
+                                    checked={remember}
+                                    onChange={(e) => setRemember(e.target.checked)}
+                                    className="h-4 w-4 rounded border border-white/20 bg-[#1f1f1f] text-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                />
+                                Recordarme
+                            </label>
+                            <div className="flex items-center gap-2">
+                                <span className="cursor-not-allowed text-[12px] text-gray-500" title="No implementado">
+                                    ¿Olvidaste tu contraseña?
+                                </span>
+                            </div>
+                        </div>
+
                         <button
-                            type="button"
-                            onClick={() => setAddServerOpen(true)}
-                            className="whitespace-nowrap rounded bg-white/10 px-2 py-1 text-[12px] text-gray-200 hover:bg白/20 focus:outline-none focus-visible:ring-1 focus-visible:ring-blue-500"
+                            type="submit"
+                            disabled={submitting}
+                            className="mt-1 w-full rounded bg-white/10 px-3 py-2 text-sm font-medium text-gray-200 hover:bg-white/20 focus:outline-none focus-visible:ring-1 focus-visible:ring-blue-500 disabled:opacity-50"
                         >
-                            AddServer
+                            {submitting ? "Ingresando..." : "Ingresar"}
                         </button>
-                    </div>
-                    {servers.length === 0 && (
-                        <p className="mt-1 text-[12px] text-gray-400">No hay servidores guardados. Usa "AddServer" para agregar uno.</p>
-                    )}
-                </div>
-                <div>
-                    <label htmlFor="username" className="mb-1 block text-[13px] text-gray-300">
-                        Usuario
-                    </label>
-                    <input
-                        id="username"
-                        type="text"
-                        autoComplete="username"
-                        value={username}
-                        onChange={(e) => setUsername(e.target.value)}
-                        className="w-full rounded border border-white/10 bg-[#1f1f1f] px-3 py-2 text-[14px] text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                        placeholder="LUIS43"
-                    />
-                    {errors.username && (
-                        <p className="mt-1 text-[12px] text-red-400">{errors.username}</p>
-                    )}
+                        {formError && (
+                            <p className="mt-2 text-[12px] text-red-400">{formError}</p>
+                        )}
+                    </form>
                 </div>
 
-                <div>
-                    <label htmlFor="password" className="mb-1 block text-[13px] text-gray-300">
-                        Contraseña
-                    </label>
-                    <div className="relative">
-                        <input
-                            id="password"
-                            type={showPassword ? "text" : "password"}
-                            autoComplete="current-password"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            className="w-full rounded border border-white/10 bg-[#1f1f1f] px-3 py-2 pr-20 text-[14px] text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                            placeholder="••••••"
-                        />
-                        <button
-                            type="button"
-                            onClick={() => setShowPassword((s) => !s)}
-                            className="absolute right-2 top-1/2 -translate-y-1/2 rounded bg-white/10 px-2 py-1 text-[12px] text-gray-200 hover:bg-white/20 focus:outline-none focus-visible:ring-1 focus-visible:ring-blue-500"
-                            aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
-                        >
-                            {showPassword ? "Ocultar" : "Mostrar"}
-                        </button>
+                <aside className="p-4 border-t md:border-t-0 md:border-l border-black/40 bg-[#242424]">
+                    <div className="flex h-full items-center justify-center">
+                        <div className="space-y-2 text-center">
+                            <p className="text-lg font-semibold text-white/30">¡Bienvenido de nuevo!</p>
+                            <p className="text-sm text-white/30">¿Aún no tienes una cuenta?</p>
+                            <p className="text-sm text-white/30">Haz clic aquí para registrarte.</p>
+                            <button
+                                type="button"
+                                className="mt-2 rounded bg-white/10 px-3 py-1.5 text-[12px] text-gray-200 hover:bg-white/20 focus:outline-none focus-visible:ring-1 focus-visible:ring-blue-500"
+                                title="No implementado"
+                            >
+                                Registrarte
+                            </button>
+                        </div>
                     </div>
-                    {errors.password && (
-                        <p className="mt-1 text-[12px] text-red-400">{errors.password}</p>
-                    )}
-                </div>
+                </aside>
+             </div>
 
-                <div className="flex items-center justify-between">
-                    <label className="flex items-center gap-2 text-[13px] text-gray-300">
-                        <input
-                            type="checkbox"
-                            checked={remember}
-                            onChange={(e) => setRemember(e.target.checked)}
-                            className="h-4 w-4 rounded border border-white/20 bg-[#1f1f1f] text-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                        />
-                        Recordarme
-                    </label>
-                    <div className="flex items-center gap-2">
-                        <span className="cursor-not-allowed text-[12px] text-gray-500" title="No implementado">
-                            ¿Olvidaste tu contraseña?
-                        </span>
-                    </div>
-                </div>
-
-                <button
-                    type="submit"
-                    disabled={submitting}
-                    className="mt-1 w-full rounded bg-white/10 px-3 py-2 text-sm font-medium text-gray-200 hover:bg-white/20 focus:outline-none focus-visible:ring-1 focus-visible:ring-blue-500 disabled:opacity-50"
-                >
-                    {submitting ? "Ingresando..." : "Ingresar"}
-                </button>
-                {formError && (
-                    <p className="mt-2 text-[12px] text-red-400">{formError}</p>
-                )}
-            </form>
-            {addServerOpen && (
+             {addServerOpen && (
                 <AddServerModal
                     open={addServerOpen}
                     onClose={() => {

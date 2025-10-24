@@ -96,8 +96,21 @@ export default function AddServerModal({
         try {
             const res = await window.electronAPI?.testMSSQLConnection?.({ ip, port, user, password });
             if (res?.ok) {
-                setTestMessage("Conexión exitosa");
-                setTestOk(true);
+                // Tras conexión exitosa, asegurar base y estructura mssqltoolkit
+                const ensureRes = await window.electronAPI?.ensureToolkit?.({ ip, port, user, password, encrypt: false });
+                if (ensureRes?.ok) {
+                    const createdDb = ensureRes.databaseCreated === true;
+                    const seededAdmin = ensureRes.seededAdmin === true;
+                    let msg = createdDb
+                        ? "Conexión exitosa. Base mssqltoolkit creada y tablas listas."
+                        : "Conexión exitosa. Base mssqltoolkit verificada y tablas listas.";
+                    if (seededAdmin) msg += " Usuario admin sembrado.";
+                    setTestMessage(msg);
+                    setTestOk(true);
+                } else {
+                    setTestMessage((ensureRes?.error ? `Conexión ok. Falló ensureToolkit: ${ensureRes.error}` : "Conexión ok. Falló ensureToolkit"));
+                    setTestOk(false);
+                }
             } else {
                 setTestMessage(res?.error || "Error al probar conexión");
                 setTestOk(false);
@@ -185,18 +198,14 @@ export default function AddServerModal({
                                         id="server-select"
                                         value={selectedIndex >= 0 ? String(selectedIndex) : ""}
                                         onChange={handleDropdownChange}
-                                        className="w-full rounded border border-white/10 bg-[#2a2a2a] px-2 py-1 text-[12px] text-gray-200 focus:outline-none focus-visible:ring-1 focus-visible:ring-blue-500"
+                                        className="w-full rounded border border-white/10 bg-[#1f1f1f] px-3 py-2 text-[14px] text-gray-100 focus:outline-none focus:ring-1 focus:ring-blue-500"
                                     >
-                                        <option value="">-- Selecciona servidor --</option>
                                         {servers.map((s, i) => (
                                             <option key={`${s.ip}:${s.port}:${i}`} value={i}>
                                                 {(s.name?.trim() ? s.name : s.ip) + `:${s.port || "1433"}`}
                                             </option>
                                         ))}
                                     </select>
-                                    {selectedIndex >= 0 && (
-                                        <div className="mt-1 text-[11px] text-blue-400">Seleccionado</div>
-                                    )}
                                 </>
                             )}
                         </div>
@@ -321,9 +330,9 @@ export default function AddServerModal({
                     <button
                         type="button"
                         onClick={onClose}
-                        className="rounded bg-white/10 px-3 py-1 text-gray-200 hover:bg-white/20 focus:outline-none focus-visible:ring-1 focus-visible:ring-blue-500"
+                        className="mt-2 inline-flex h-8 items-center justify-center rounded bg-white/10 px-3 text-[12px] text-gray-200 hover:bg-white/20 focus:outline-none focus-visible:ring-1 focus-visible:ring-blue-500"
                     >
-                        Salir
+                        Cerrar
                     </button>
                 </div>
             </div>

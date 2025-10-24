@@ -11,6 +11,10 @@ const log = require("electron-log");
 
 let mainWindow = null;
 
+// Track active server and session user
+let activeServerIndex = -1;
+let activeUsername = null;
+
 // Configure logging
 log.transports.file.level = "info";
 autoUpdater.logger = log;
@@ -450,6 +454,7 @@ ipcMain.handle("mssql:validateUser", async (_event, creds) => {
         const ok = Array.isArray(result?.recordset) && result.recordset.length > 0;
         if (ok) {
             activeServerIndex = idx; // track active server on successful login
+            activeUsername = String(username || "").trim(); // track active session user
         }
         return ok ? { ok: true } : { ok: false, error: "Usuario o contraseña inválidos." };
     } catch (e) {
@@ -576,6 +581,22 @@ ipcMain.handle("mssql:saveConsulta", async (_event, payload) => {
     try {
         await sql.connect(config);
         const request = new sql.Request();
+        const codigoUsuario = String(activeUsername || "").trim();
+        if (!codigoUsuario) {
+            await sql.close();
+            return { ok: false, error: "Sesión no autenticada: falta CodigoUsuario activo." };
+        }
+        // Validar que el usuario exista (FK)
+        request.input("CodigoUsuario", sql.NVarChar(50), codigoUsuario);
+        const userExists = await request.query(
+            "SELECT TOP 1 1 AS x FROM dbo.GENUsuario WHERE Codigo = @CodigoUsuario"
+        );
+        const hasUser = Array.isArray(userExists?.recordset) && userExists.recordset.length > 0;
+        if (!hasUser) {
+            await sql.close();
+            return { ok: false, error: `Usuario inexistente en GENUsuario: ${codigoUsuario}` };
+        }
+    
         request.input("CodigoAplicacion", sql.VarChar(2), cod);
         request.input("Descripcion", sql.VarChar(50), desc);
         request.input("Consulta", sql.VarChar(sql.MAX), String(sqlText));
@@ -584,22 +605,22 @@ ipcMain.handle("mssql:saveConsulta", async (_event, payload) => {
         } else {
             request.input("ReporteAsociado", sql.VarChar(sql.MAX), rep);
         }
-
+    
         // Check if exists
         const exists = await request.query(
             "SELECT TOP 1 1 AS existsFlag FROM dbo.GENConsultas WHERE CodigoAplicacion = @CodigoAplicacion AND Descripcion = @Descripcion"
         );
         const hasRow = Array.isArray(exists?.recordset) && exists.recordset.length > 0;
-
+    
         if (hasRow) {
             await request.query(
-                "UPDATE dbo.GENConsultas SET Consulta = @Consulta, ReporteAsociado = @ReporteAsociado WHERE CodigoAplicacion = @CodigoAplicacion AND Descripcion = @Descripcion"
+                "UPDATE dbo.GENConsultas SET Consulta = @Consulta, ReporteAsociado = @ReporteAsociado, CodigoUsuario = @CodigoUsuario WHERE CodigoAplicacion = @CodigoAplicacion AND Descripcion = @Descripcion"
             );
             await sql.close();
             return { ok: true, updated: true };
         } else {
             await request.query(
-                "INSERT INTO dbo.GENConsultas (CodigoAplicacion, Descripcion, Consulta, ReporteAsociado) VALUES (@CodigoAplicacion, @Descripcion, @Consulta, @ReporteAsociado)"
+                "INSERT INTO dbo.GENConsultas (CodigoAplicacion, Descripcion, Consulta, ReporteAsociado, CodigoUsuario) VALUES (@CodigoAplicacion, @Descripcion, @Consulta, @ReporteAsociado, @CodigoUsuario)"
             );
             await sql.close();
             return { ok: true, inserted: true };
@@ -607,6 +628,115 @@ ipcMain.handle("mssql:saveConsulta", async (_event, payload) => {
     } catch (e) {
         try { await sql.close(); } catch {}
         log.error(`[mssql:saveConsulta] ERROR: ${String(e?.message || e)}`);
+        return { ok: false, error: String(e?.message || e) };
+    }
+});
+
+
+ipcMain.handle("mssql:ensureToolkit", async (_event, info) => {
+    const server = String(info?.ip || info?.server || "").trim();
+    const portNum = info?.port !== undefined && info?.port !== null ? Number(info.port) : 1433;
+    const user = String(info?.user || "").trim();
+    const password = String(info?.password || "").trim();
+    const encrypt = info?.encrypt === true ? true : false;
+
+    const baseConfig = {
+        server,
+        port: Number.isFinite(portNum) && portNum > 0 ? portNum : 1433,
+        user,
+        password,
+        connectionTimeout: 15000,
+        requestTimeout: 30000,
+        options: {
+            encrypt,
+            trustServerCertificate: true,
+        },
+    };
+
+    log.info(`[mssql:ensureToolkit] server=${server} port=${baseConfig.port} encrypt=${encrypt}`);
+
+    try {
+        // 1) Conectar a master y verificar existencia de la BD
+        await sql.connect({ ...baseConfig, database: "master" });
+        const req1 = new sql.Request();
+        req1.input("db", sql.NVarChar, "mssqltoolkit");
+        const existsRes = await req1.query("SELECT TOP 1 name FROM sys.databases WHERE name = @db");
+        const dbExists = Array.isArray(existsRes?.recordset) && existsRes.recordset.length > 0;
+        if (!dbExists) {
+            await sql.query("CREATE DATABASE [mssqltoolkit]");
+            log.info("[mssql:ensureToolkit] Base 'mssqltoolkit' creada");
+        }
+        await sql.close();
+
+        // 2) Conectar a mssqltoolkit y crear tablas/índices si no existen
+        await sql.connect({ ...baseConfig, database: "mssqltoolkit" });
+        // Tabla GENUsuario
+        await sql.query(
+            "IF NOT EXISTS (SELECT 1 FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[GENUsuario]') AND type = N'U') BEGIN " +
+            "CREATE TABLE [dbo].[GENUsuario] (" +
+            "Codigo NVARCHAR(50) NOT NULL PRIMARY KEY, " +
+            "Clave NVARCHAR(100) NOT NULL, " +
+            "Nombre NVARCHAR(100) NULL, " +
+            "Activo BIT NOT NULL DEFAULT 1, " +
+            "FechaCreacion DATETIME2 DEFAULT SYSDATETIME()" +
+            ") END"
+        );
+        // Tabla GENConsultas
+        await sql.query(
+            "IF NOT EXISTS (SELECT 1 FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[GENConsultas]') AND type = N'U') BEGIN " +
+            "CREATE TABLE [dbo].[GENConsultas] (" +
+            "Id INT IDENTITY(1,1) PRIMARY KEY, " +
+            "CodigoAplicacion NVARCHAR(50) NOT NULL, " +
+            "Descripcion NVARCHAR(200) NOT NULL, " +
+            "Consulta NVARCHAR(MAX) NOT NULL, " +
+            "ReporteAsociado NVARCHAR(200) NULL, " +
+            "CodigoUsuario NVARCHAR(50) NOT NULL, " +
+            "FechaCreacion DATETIME2 DEFAULT SYSDATETIME(), " +
+            "CONSTRAINT FK_GENConsultas_GENUsuario FOREIGN KEY (CodigoUsuario) REFERENCES dbo.GENUsuario(Codigo) ON DELETE NO ACTION ON UPDATE NO ACTION" +
+            ") END"
+        );
+        // Índice único en GENConsultas
+        await sql.query(
+            "IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'UX_GENConsultas_Codigo_Descripcion' AND object_id = OBJECT_ID(N'[dbo].[GENConsultas]')) BEGIN " +
+            "CREATE UNIQUE INDEX UX_GENConsultas_Codigo_Descripcion ON dbo.GENConsultas(CodigoAplicacion, Descripcion) " +
+            "END"
+        );
+        // Índice no cluster por CodigoUsuario
+        await sql.query(
+            "IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_GENConsultas_CodigoUsuario' AND object_id = OBJECT_ID(N'[dbo].[GENConsultas]')) BEGIN " +
+            "CREATE NONCLUSTERED INDEX IX_GENConsultas_CodigoUsuario ON dbo.GENConsultas(CodigoUsuario) " +
+            "END"
+        );
+        // Semilla: usuario admin/admin
+        await sql.query(
+            "IF NOT EXISTS (SELECT 1 FROM dbo.GENUsuario WHERE Codigo = N'admin') BEGIN " +
+            "INSERT INTO dbo.GENUsuario(Codigo, Clave, Nombre, Activo) VALUES (N'admin', N'admin', N'Administrador', 1) " +
+            "END"
+        );
+
+        // Verificar estado final
+        const check = async (q) => {
+            const r = await sql.query(q);
+            return Array.isArray(r?.recordset) && r.recordset.length > 0;
+        };
+        const hasUser = await check("SELECT TOP 1 1 AS x FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[GENUsuario]') AND type = N'U'");
+        const hasConsultas = await check("SELECT TOP 1 1 AS x FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[GENConsultas]') AND type = N'U'");
+        const hasIdx = await check("SELECT TOP 1 1 AS x FROM sys.indexes WHERE name = N'UX_GENConsultas_Codigo_Descripcion' AND object_id = OBJECT_ID(N'[dbo].[GENConsultas]')");
+        const hasIdxUser = await check("SELECT TOP 1 1 AS x FROM sys.indexes WHERE name = N'IX_GENConsultas_CodigoUsuario' AND object_id = OBJECT_ID(N'[dbo].[GENConsultas]')");
+        const hasAdmin = await check("SELECT TOP 1 1 AS x FROM dbo.GENUsuario WHERE Codigo = N'admin'");
+
+        await sql.close();
+        return {
+            ok: true,
+            databaseExisted: dbExists,
+            databaseCreated: !dbExists,
+            tables: { GENUsuario: hasUser, GENConsultas: hasConsultas },
+            indexes: { UX_GENConsultas_Codigo_Descripcion: hasIdx, IX_GENConsultas_CodigoUsuario: hasIdxUser },
+            seededAdmin: hasAdmin,
+        };
+    } catch (e) {
+        try { await sql.close(); } catch {}
+        log.error(`[mssql:ensureToolkit] ERROR: ${String(e?.message || e)}`);
         return { ok: false, error: String(e?.message || e) };
     }
 });
