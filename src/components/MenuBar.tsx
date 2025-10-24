@@ -27,9 +27,7 @@ export const TOP_MENUS: TopMenu[] = [
 
 export const SUB_MENUS: Record<MenuKey, SubMenuItem[]> = {
 	file: [
-		{ id: "logout", label: "Cerrar sesión" },
-		{ id: "sep-1", label: "", separator: true },
-		{ id: "exit", label: "Salir" },
+		{ id: "logout", label: "Cerrar sesión" }
 	],
 	view: [
 		{ id: "reload", label: "Recargar", kbd: "Ctrl+R" },
@@ -256,7 +254,7 @@ export function MenuBar({
 	const [userMenuOpen, setUserMenuOpen] = React.useState(false);
 	// Derivados para el estado del botón de actualización
 	const isDownloading = updateStatus === "Downloading update..." || (typeof updateProgress === 'number' && updateProgress < 100);
-	const ctaLabel = updateReady ? "Restart to Update" : isDownloading ? `Downloading ${Math.round(updateProgress ?? 0)}%` : "";
+	const ctaLabel = updateReady ? "Restart to Update" : isDownloading ? `Downloading ${Math.round(updateProgress ?? 0)}%` : "Update";
 
 	React.useEffect(() => {
 		function onKey(e: KeyboardEvent) {
@@ -280,10 +278,6 @@ export function MenuBar({
 			case "logout":
 				onLogout?.();
 				break;
-			case "exit":
-				window.electronAPI?.exit();
-				break;
-			
 			// Vista
 			case "reload":
                 if (window.electronAPI?.reload) {

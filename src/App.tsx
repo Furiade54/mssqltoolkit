@@ -16,10 +16,13 @@ type CardItem = {
     descripcion: string;
     consulta: string;
     reporteAsociado?: string;
+    // Per-server segregation
+    serverIp?: string;
 };
 
 const App: React.FC = () => {
     const [user, setUser] = React.useState<{ username: string } | null>(null);
+    const [currentServerIp, setCurrentServerIp] = React.useState<string | null>(null);
 
     const [cards, setCards] = React.useState<CardItem[]>([]);
 
@@ -154,7 +157,7 @@ const App: React.FC = () => {
         setResultsError(null);
         setExecutingId(card.id);
         try {
-            const res = await window.electronAPI?.runMSSQLQuery?.({ sqlText: card.consulta, database: "Opciones" });
+            const res = await window.electronAPI?.runMSSQLQuery?.({ sqlText: card.consulta, database: "Opciones", serverIp: currentServerIp ?? undefined });
             if (res?.ok) {
                 setResultsRows(res.rows || []);
                 setResultsCols(res.columns || []);
@@ -217,8 +220,10 @@ const App: React.FC = () => {
         (async () => {
             try {
                 const stored = await idbGetAllCards();
+                // Filter by active server
+                const filtered = (currentServerIp ? stored.filter((c) => c.serverIp === currentServerIp) : []) as StoredCard[];
                 // Map StoredCard -> CardItem shape expected by UI
-                const cardsFromDB = stored.map((c) => ({
+                const cardsFromDB = filtered.map((c) => ({
                     id: c.id,
                     title: c.title,
                     subtitle: c.subtitle,
@@ -228,13 +233,14 @@ const App: React.FC = () => {
                     descripcion: c.descripcion,
                     consulta: c.consulta,
                     reporteAsociado: c.reporteAsociado,
+                    serverIp: c.serverIp,
                 }));
                 setCards(cardsFromDB);
             } catch (e) {
                 console.error("IndexedDB: error cargando tarjetas", e);
             }
         })();
-    }, []);
+    }, [currentServerIp]);
 
     async function saveAdd() {
         if (!newTitle.trim() || !newDescripcion.trim() || !newConsulta.trim()) return;
@@ -285,6 +291,7 @@ const App: React.FC = () => {
                     descripcion: newDescripcion.trim(),
                     consulta: newConsulta.trim(),
                     reporteAsociado: newReporteAsociado.trim() || undefined,
+                    serverIp: currentServerIp ?? undefined,
                 };
                 await idbSaveCard(toStore);
             } catch (e) {
@@ -315,7 +322,7 @@ const App: React.FC = () => {
         };
         setCards((prev) => prev.map((c) => (c.id === editId ? updated : c)));
         try {
-            const toStore: StoredCard = { ...updated } as StoredCard;
+            const toStore: StoredCard = { ...updated, serverIp: currentServerIp ?? undefined } as StoredCard;
             await idbSaveCard(toStore);
         } catch (e) {
             console.error("IndexedDB: error actualizando tarjeta", e);
@@ -343,7 +350,7 @@ const App: React.FC = () => {
     return (
         <div className="h-screen w-screen overflow-hidden bg-[#1e1e1e] text-gray-200 antialiased">
             <ErrorBoundary fallback={<div className="relative flex h-8 items-center gap-1 border-b border-black/50 bg-[#2d2d2d] px-2 select-none text-[11px] text-red-400">Menú no disponible por error.</div>}> 
-                <MenuBar menus={user ? TOP_MENUS : []} user={user} onLogout={() => setUser(null)} />
+                <MenuBar menus={user ? TOP_MENUS : []} user={user} onLogout={() => { setUser(null); setCurrentServerIp(null); setCards([]); }} />
             </ErrorBoundary>
 
             <main className="pt-0">
@@ -354,14 +361,14 @@ const App: React.FC = () => {
                                 <div className="text-red-400">Login no disponible por error.</div>
                                 <button
                                     type="button"
-                                    onClick={() => setUser({ username: "test" })}
+                                    onClick={() => { setUser({ username: "test" }); setCurrentServerIp(null); }}
                                     className="mt-3 rounded bg-blue-600/80 px-3 py-1 text-white hover:bg-blue-600 focus:outline-none focus-visible:ring-1 focus-visible:ring-blue-500"
                                 >
                                     Continuar sin login
                                 </button>
                             </div>
                         }>
-                            <LoginForm onLogin={(data) => setUser({ username: data.username })} />
+                            <LoginForm onLogin={(data) => { setUser({ username: data.username }); setCurrentServerIp(data.serverIp ?? null); }} />
                         </ErrorBoundary>
                     </div>
                 ) : (

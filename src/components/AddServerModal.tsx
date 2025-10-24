@@ -32,6 +32,7 @@ export default function AddServerModal({
     const [testMessage, setTestMessage] = React.useState<string | null>(null);
     const [testOk, setTestOk] = React.useState<boolean | null>(null);
     const [editing, setEditing] = React.useState(false);
+    const [saveError, setSaveError] = React.useState<string | null>(null);
 
     if (!open) return null;
 
@@ -63,66 +64,28 @@ export default function AddServerModal({
         setTestMessage(null);
         setTestOk(null);
         setEditing(true);
+        setSaveError(null);
     }
 
     async function handleSave() {
+        // Validación: Nombre e IP son obligatorios
+        if (!name.trim() || !ip.trim()) {
+            setSaveError("Nombre e IP servidor son obligatorios");
+            return;
+        }
         setSaving(true);
         try {
-            await onSave({ name, ip, port, user, password });
-            onClose();
-        } finally {
-            setSaving(false);
-        }
-    }
-
-    function handleEdit(index: number) {
-        setSelectedIndex(index);
-        const s = servers[index];
-        if (s) {
-            setName(s.name || "");
-            setIp(s.ip || "");
-            setPort(s.port || "");
-            setUser(s.user || "");
-            setPassword(s.password || "");
-            setTestMessage(null);
-            setTestOk(null);
-            setEditing(false); // al seleccionar, inicia en modo solo lectura
-        }
-    }
-
-    async function handleUpdate() {
-        if (selectedIndex < 0) return;
-        setSaving(true);
-        try {
-            const res = await window.electronAPI?.updateMSSQLServer?.(selectedIndex, { name, ip, port, user, password });
-            if (res?.ok) {
+            if (selectedIndex >= 0) {
+                const res = await window.electronAPI?.updateMSSQLServer?.(selectedIndex, { name, ip, port, user, password });
+                console.log("Servidor actualizado:", res);
                 await loadServers();
                 setEditing(false);
             } else {
-                console.error("Error al actualizar servidor:", res?.error);
+                await onSave({ name, ip, port, user, password });
+                onClose();
             }
         } finally {
             setSaving(false);
-        }
-    }
-
-    async function handleDelete(index: number) {
-        const s = servers[index];
-        const label = s?.name?.trim() || `${s?.ip || ""}:${s?.port || ""}`;
-        const confirmed = window.confirm(`¿Eliminar servidor "${label}"? Esta acción no se puede deshacer.`);
-        if (!confirmed) return;
-        try {
-            const res = await window.electronAPI?.deleteMSSQLServer?.(index);
-            if (res?.ok) {
-                await loadServers();
-                if (selectedIndex === index) {
-                    clearForm();
-                }
-            } else {
-                console.error("Error al eliminar servidor:", res?.error);
-            }
-        } catch (e) {
-            console.error("Error al eliminar servidor:", e);
         }
     }
 
@@ -133,32 +96,43 @@ export default function AddServerModal({
         try {
             const res = await window.electronAPI?.testMSSQLConnection?.({ ip, port, user, password });
             if (res?.ok) {
-                setTestOk(true);
                 setTestMessage("Conexión exitosa");
+                setTestOk(true);
             } else {
+                setTestMessage(res?.error || "Error al probar conexión");
                 setTestOk(false);
-                setTestMessage(`Error: ${res?.error ?? "desconocido"}`);
             }
         } catch (e) {
+            setTestMessage(String((e as Error)?.message || e));
             setTestOk(false);
-            setTestMessage(`Error: ${String((e as Error)?.message ?? e)}`);
         } finally {
             setTesting(false);
         }
     }
 
-    async function handlePrimaryAction() {
-        if (!editing) {
-            // Pasar a modo edición
-            setEditing(true);
+    function handleSelect(index: number) {
+        setSelectedIndex(index);
+        const s = servers[index];
+        if (!s) return;
+        setName(s.name || "");
+        setIp(s.ip || "");
+        setPort(s.port || "");
+        setUser(s.user || "");
+        setPassword(s.password || "");
+        setEditing(false);
+        setTestMessage(null);
+        setTestOk(null);
+        setSaveError(null);
+    }
+
+    function handleDropdownChange(e: React.ChangeEvent<HTMLSelectElement>) {
+        const val = e.target.value;
+        if (!val) {
+            clearForm();
             return;
         }
-        // Modo edición activo: Guardar
-        if (selectedIndex >= 0) {
-            await handleUpdate();
-        } else {
-            await handleSave();
-        }
+        const idx = parseInt(val, 10);
+        if (!Number.isNaN(idx)) handleSelect(idx);
     }
 
     return (
@@ -167,7 +141,6 @@ export default function AddServerModal({
             aria-modal="true"
             className="fixed inset-0 z-50 grid place-items-center bg-black/50"
             style={{ WebkitAppRegion: "no-drag" } as DraggableStyle}
-            onClick={onClose}
         >
             <div
                 className="w-[420px] rounded-md border border-black/50 bg-[#2d2d2d] p-4 text-sm text-gray-200 shadow-xl"
@@ -187,10 +160,16 @@ export default function AddServerModal({
                                 >
                                     Nuevo
                                 </button>
+                                {/* Botón Editar y Guardar cambios eliminados por redundancia */}
                                 <button
                                     type="button"
-                                    onClick={() => selectedIndex >= 0 && handleDelete(selectedIndex)}
-                                    disabled={selectedIndex < 0 || servers.length === 0}
+                                    disabled={selectedIndex < 0}
+                                    onClick={async () => {
+                                        const res = await window.electronAPI?.deleteMSSQLServer?.(selectedIndex);
+                                        console.log("Servidor eliminado:", res);
+                                        await loadServers();
+                                        clearForm();
+                                    }}
                                     className="rounded bg-white/10 px-2 py-1 text-[12px] text-gray-200 hover:bg-white/20 focus:outline-none focus-visible:ring-1 focus-visible:ring-blue-500 disabled:opacity-50"
                                 >
                                     Eliminar
@@ -198,44 +177,40 @@ export default function AddServerModal({
                             </div>
                         </div>
                         <div className="rounded border border-white/10 bg-[#1f1f1f] p-2">
-                            <select
-                                className="w-full rounded border border-white/10 bg-[#1f1f1f] px-2 py-1 text-[14px] text-gray-100 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-50"
-                                value={selectedIndex >= 0 ? String(selectedIndex) : ""}
-                                onChange={(e) => {
-                                    const idx = Number(e.target.value);
-                                    setSelectedIndex(Number.isNaN(idx) ? -1 : idx);
-                                    if (!Number.isNaN(idx)) handleEdit(idx);
-                                }}
-                                disabled={loadingList || servers.length === 0}
-                            >
-                                {loadingList ? (
-                                    <option value="">Cargando...</option>
-                                ) : servers.length === 0 ? (
-                                    <option value="">No hay servidores guardados</option>
-                                ) : (
-                                    <>
-                                        <option value="" disabled>
-                                            Selecciona un servidor
-                                        </option>
+                            {servers.length === 0 ? (
+                                <p className="text-[12px] text-gray-400">No hay servidores guardados.</p>
+                            ) : (
+                                <>
+                                    <select
+                                        id="server-select"
+                                        value={selectedIndex >= 0 ? String(selectedIndex) : ""}
+                                        onChange={handleDropdownChange}
+                                        className="w-full rounded border border-white/10 bg-[#2a2a2a] px-2 py-1 text-[12px] text-gray-200 focus:outline-none focus-visible:ring-1 focus-visible:ring-blue-500"
+                                    >
+                                        <option value="">-- Selecciona servidor --</option>
                                         {servers.map((s, i) => (
                                             <option key={`${s.ip}:${s.port}:${i}`} value={i}>
                                                 {(s.name?.trim() ? s.name : s.ip) + `:${s.port || "1433"}`}
                                             </option>
                                         ))}
-                                    </>
-                                )}
-                            </select>
+                                    </select>
+                                    {selectedIndex >= 0 && (
+                                        <div className="mt-1 text-[11px] text-blue-400">Seleccionado</div>
+                                    )}
+                                </>
+                            )}
                         </div>
                     </div>
+
                     <div>
                         <label htmlFor="server-name" className="mb-1 block text-[13px] text-gray-300">
-                            Nombre Servidor
+                            Nombre
                         </label>
                         <input
                             id="server-name"
                             type="text"
                             value={name}
-                            onChange={(e) => setName(e.target.value)}
+                            onChange={(e) => { setName(e.target.value); setSaveError(null); }}
                             disabled={!editing}
                             className="w-full rounded border border-white/10 bg-[#1f1f1f] px-3 py-2 text-[14px] text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
                             placeholder="Servidor Principal"
@@ -250,7 +225,7 @@ export default function AddServerModal({
                             id="server-ip"
                             type="text"
                             value={ip}
-                            onChange={(e) => setIp(e.target.value)}
+                            onChange={(e) => { setIp(e.target.value); setSaveError(null); }}
                             disabled={!editing}
                             className="w-full rounded border border-white/10 bg-[#1f1f1f] px-3 py-2 text-[14px] text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
                             placeholder="192.168.1.10"
@@ -270,7 +245,7 @@ export default function AddServerModal({
                             onChange={(e) => setPort(e.target.value)}
                             disabled={!editing}
                             className="w-full rounded border border-white/10 bg-[#1f1f1f] px-3 py-2 text-[14px] text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                            placeholder="8080"
+                            placeholder="1433"
                         />
                     </div>
 
@@ -303,22 +278,24 @@ export default function AddServerModal({
                             placeholder="••••••"
                         />
                     </div>
-                </div>
 
-                <div className="mt-4 flex justify-between gap-2">
+                    {saveError && (
+                        <div className="text-[12px] text-red-400">{saveError}</div>
+                    )}
+
                     <div className="flex items-center gap-2">
                         <button
                             type="button"
                             onClick={handleTestConnection}
-                            disabled={testing}
-                            className="rounded bg-white/10 px-3 py-1 text-gray-200 hover:bg-white/20 focus:outline-none focus-visible:ring-1 focus-visible:ring-blue-500 disabled:opacity-50"
+                            disabled={testing || !ip || !port || !user || !password}
+                            className="inline-flex h-8 items-center justify-center rounded bg-white/10 px-3 text-[12px] text-gray-200 hover:bg-white/20 focus:outline-none focus-visible:ring-1 focus-visible:ring-blue-500 disabled:opacity-50"
                         >
-                            {testing ? "Probando..." : "Test conexión"}
+                            {testing ? "Probando..." : "Probar conexión"}
                         </button>
                         <button
                             type="button"
-                            onClick={handlePrimaryAction}
-                            disabled={saving}
+                            onClick={editing ? handleSave : () => setEditing(true)}
+                            disabled={saving || (editing && (!name.trim() || !ip.trim()))}
                             aria-label={!editing ? "Editar" : "Guardar"}
                             title={!editing ? "Editar" : "Guardar"}
                             className="inline-flex h-8 w-8 items-center justify-center rounded bg-white/10 text-gray-200 hover:bg-white/20 focus:outline-none focus-visible:ring-1 focus-visible:ring-blue-500 disabled:opacity-50"

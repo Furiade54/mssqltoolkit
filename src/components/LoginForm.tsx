@@ -5,6 +5,7 @@ type LoginData = {
     username: string;
     password: string;
     remember: boolean;
+    serverIp?: string;
 };
 
 export default function LoginForm({ onLogin }: { onLogin?: (data: LoginData) => void | Promise<void> }) {
@@ -39,10 +40,8 @@ export default function LoginForm({ onLogin }: { onLogin?: (data: LoginData) => 
 
     function validate() {
         const e: { username?: string; password?: string } = {};
-        if (!username.trim()) e.username = "Ingresa tu usuario";
-        else if (username.length < 3) e.username = "Debe tener al menos 3 caracteres";
-        if (!password.trim()) e.password = "Ingresa tu contraseña";
-        else if (password.length < 4) e.password = "Debe tener al menos 4 caracteres";
+        if (!username.trim()) e.username = "Usuario es requerido";
+        if (!password.trim()) e.password = "Contraseña es requerida";
         setErrors(e);
         return e;
     }
@@ -55,9 +54,10 @@ export default function LoginForm({ onLogin }: { onLogin?: (data: LoginData) => 
             setSubmitting(true);
             setFormError(null);
             const idx = servers.length > 0 ? Math.min(Math.max(serverIndex, 0), servers.length - 1) : undefined;
-            const res = await window.electronAPI?.validateMSSQLUser?.({ username, password, encrypt: false, serverIndex: idx });
+            const selIp = typeof idx === "number" ? servers[idx]?.ip : undefined;
+            const res = await window.electronAPI?.validateMSSQLUser?.({ username, password, encrypt: false, serverIndex: idx, serverIp: selIp });
             if (res?.ok) {
-                await onLogin?.({ username, password, remember });
+                await onLogin?.({ username, password, remember, serverIp: selIp });
             } else {
                 setFormError(res?.error || "Usuario o contraseña inválidos.");
             }
@@ -91,7 +91,7 @@ export default function LoginForm({ onLogin }: { onLogin?: (data: LoginData) => 
                         <button
                             type="button"
                             onClick={() => setAddServerOpen(true)}
-                            className="whitespace-nowrap rounded bg-white/10 px-2 py-1 text-[12px] text-gray-200 hover:bg-white/20 focus:outline-none focus-visible:ring-1 focus-visible:ring-blue-500"
+                            className="whitespace-nowrap rounded bg-white/10 px-2 py-1 text-[12px] text-gray-200 hover:bg白/20 focus:outline-none focus-visible:ring-1 focus-visible:ring-blue-500"
                         >
                             AddServer
                         </button>
