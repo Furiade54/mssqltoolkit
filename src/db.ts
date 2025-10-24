@@ -11,6 +11,8 @@ export type StoredCard = {
   reporteAsociado?: string;
   // Per-server segregation
   serverIp?: string;
+  // Usuario propietario
+  codigoUsuario?: string;
   createdAt?: string;
   updatedAt?: string;
 };
@@ -20,8 +22,8 @@ const STORE_NAME = "cardQueries";
 
 function openDB(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
-    // bump version to add serverIp index
-    const req = indexedDB.open(DB_NAME, 2);
+    // bump version to add serverIp and codigoUsuario index
+    const req = indexedDB.open(DB_NAME, 3);
     req.onupgradeneeded = () => {
       const db = req.result;
       let store: IDBObjectStore;
@@ -39,6 +41,9 @@ function openDB(): Promise<IDBDatabase> {
         }
         if (!store.indexNames.contains("serverIp")) {
           store.createIndex("serverIp", "serverIp", { unique: false });
+        }
+        if (!store.indexNames.contains("codigoUsuario")) {
+          store.createIndex("codigoUsuario", "codigoUsuario", { unique: false });
         }
       } catch {}
     };

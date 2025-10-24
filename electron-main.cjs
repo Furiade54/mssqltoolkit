@@ -742,3 +742,63 @@ ipcMain.handle("mssql:ensureToolkit", async (_event, info) => {
 });
 
 
+
+// ...
+
+// IPC: MSSQL register user (insert into dbo.GENUsuario)
+ipcMain.handle("mssql:registerUser", async (_event, payload) => {
+    const { username, password, nombre = null, activo = true, encrypt = false, serverIndex, serverIp } = payload || {};
+    const servers = readServersList();
+    if (!servers || servers.length === 0) {
+        return { ok: false, error: "No hay servidor MSSQL configurado. Agrega uno primero." };
+    }
+    let idx = -1;
+    if (serverIp) {
+        idx = findServerIndexByIp(serverIp, servers);
+    }
+    if (!Number.isFinite(idx) || idx < 0) {
+        idx = typeof serverIndex === "number" ? serverIndex : servers.length - 1;
+    }
+    if (!Number.isFinite(idx) || idx < 0 || idx >= servers.length) idx = servers.length - 1;
+    const target = servers[idx];
+    const server = String(target?.ip || "").trim();
+    const portNum = target?.port !== undefined && target?.port !== null ? Number(target.port) : 1433;
+    const user = String(target?.user || "").trim();
+    const pass = String(target?.password || "").trim();
+    const baseConfig = {
+        server,
+        port: Number.isFinite(portNum) && portNum > 0 ? portNum : 1433,
+        user,
+        password: pass,
+        connectionTimeout: 7000,
+        requestTimeout: 7000,
+        options: {
+            encrypt: encrypt === true ? true : false,
+            trustServerCertificate: true,
+        },
+    };
+    log.info(`[mssql:registerUser] server=${server} port=${baseConfig.port} encrypt=${baseConfig.options.encrypt} user=${username} serverIndex=${idx}`);
+    try {
+        await sql.connect({ ...baseConfig, database: "mssqltoolkit" });
+        const request = new sql.Request();
+        request.input("codigo", sql.NVarChar, String(username || ""));
+        request.input("clave", sql.NVarChar, String(password || ""));
+        request.input("nombre", nombre != null ? sql.NVarChar : sql.NVarChar, nombre != null ? String(nombre) : null);
+        request.input("activo", sql.Bit, activo === false ? false : true);
+        const existsRes = await request.query("SELECT TOP 1 Codigo FROM dbo.GENUsuario WHERE Codigo = @codigo");
+        const exists = Array.isArray(existsRes?.recordset) && existsRes.recordset.length > 0;
+        if (exists) {
+            await sql.close();
+            return { ok: false, error: "Usuario ya existe" };
+        }
+        await request.query("INSERT INTO dbo.GENUsuario(Codigo, Clave, Nombre, Activo) VALUES (@codigo, @clave, @nombre, @activo)");
+        await sql.close();
+        return { ok: true, inserted: true };
+    } catch (e) {
+        try { await sql.close(); } catch {}
+        log.error(`[mssql:registerUser] ERROR: ${String(e?.message || e)}`);
+        return { ok: false, error: String(e?.message || e) };
+    }
+});
+
+

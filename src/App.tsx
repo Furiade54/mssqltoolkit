@@ -220,8 +220,8 @@ const App: React.FC = () => {
         (async () => {
             try {
                 const stored = await idbGetAllCards();
-                // Filter by active server
-                const filtered = (currentServerIp ? stored.filter((c) => c.serverIp === currentServerIp) : []) as StoredCard[];
+                // Filter by active server and usuario logueado
+                const filtered = (currentServerIp && user ? stored.filter((c) => c.serverIp === currentServerIp && c.codigoUsuario === user.username) : []) as StoredCard[];
                 // Map StoredCard -> CardItem shape expected by UI
                 const cardsFromDB = filtered.map((c) => ({
                     id: c.id,
@@ -240,7 +240,7 @@ const App: React.FC = () => {
                 console.error("IndexedDB: error cargando tarjetas", e);
             }
         })();
-    }, [currentServerIp]);
+    }, [currentServerIp, user]);
 
     async function saveAdd() {
         if (!newTitle.trim() || !newDescripcion.trim() || !newConsulta.trim()) return;
@@ -292,6 +292,7 @@ const App: React.FC = () => {
                     consulta: newConsulta.trim(),
                     reporteAsociado: newReporteAsociado.trim() || undefined,
                     serverIp: currentServerIp ?? undefined,
+                    codigoUsuario: user?.username,
                 };
                 await idbSaveCard(toStore);
             } catch (e) {
@@ -322,7 +323,7 @@ const App: React.FC = () => {
         };
         setCards((prev) => prev.map((c) => (c.id === editId ? updated : c)));
         try {
-            const toStore: StoredCard = { ...updated, serverIp: currentServerIp ?? undefined } as StoredCard;
+            const toStore: StoredCard = { ...updated, serverIp: currentServerIp ?? undefined, codigoUsuario: user?.username } as StoredCard;
             await idbSaveCard(toStore);
         } catch (e) {
             console.error("IndexedDB: error actualizando tarjeta", e);

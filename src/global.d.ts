@@ -30,6 +30,7 @@ declare global {
             validateMSSQLUser: (creds: { username: string; password: string; encrypt?: boolean; serverIndex?: number; serverIp?: string }) => Promise<{ ok: boolean; error?: string }>;
             runMSSQLQuery: (payload: { sqlText: string; database?: string; encrypt?: boolean; serverIndex?: number; serverIp?: string }) => Promise<{ ok: boolean; rows?: any[]; columns?: string[]; count?: number; error?: string }>;
             saveMSSQLConsulta: (payload: { codigoAplicacion?: string; descripcion: string; consulta: string; reporteAsociado?: string | null; encrypt?: boolean; serverIndex?: number; serverIp?: string }) => Promise<{ ok: boolean; inserted?: boolean; updated?: boolean; error?: string }>;
+            registerMSSQLUser: (payload: { username: string; password: string; nombre?: string | null; activo?: boolean; encrypt?: boolean; serverIndex?: number; serverIp?: string }) => Promise<{ ok: boolean; inserted?: boolean; error?: string }>;
             ensureToolkit: (info: { ip?: string; server?: string; port?: string | number; user?: string; password?: string; encrypt?: boolean }) => Promise<{ ok: boolean; databaseExisted?: boolean; databaseCreated?: boolean; tables?: { GENUsuario: boolean; GENConsultas: boolean }; indexes?: { UX_GENConsultas_Codigo_Descripcion: boolean; IX_GENConsultas_CodigoUsuario: boolean }; seededAdmin?: boolean; error?: string }>;
 		};
 	}

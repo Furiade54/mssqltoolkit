@@ -1,5 +1,6 @@
 import React from "react";
 import AddServerModal from "./AddServerModal";
+import RegisterModal from "./RegisterModal";
 
 type LoginData = {
     username: string;
@@ -17,6 +18,7 @@ export default function LoginForm({ onLogin }: { onLogin?: (data: LoginData) => 
     const [formError, setFormError] = React.useState<string | null>(null);
     const [submitting, setSubmitting] = React.useState(false);
     const [addServerOpen, setAddServerOpen] = React.useState(false);
+    const [registerOpen, setRegisterOpen] = React.useState(false);
     const [servers, setServers] = React.useState<Array<{ name: string; ip: string; port: string; user: string; password: string; createdAt?: string }>>([]);
     const [serverIndex, setServerIndex] = React.useState(0);
 
@@ -186,8 +188,8 @@ export default function LoginForm({ onLogin }: { onLogin?: (data: LoginData) => 
                             <p className="text-sm text-white/30">Haz clic aquí para registrarte.</p>
                             <button
                                 type="button"
+                                onClick={() => setRegisterOpen(true)}
                                 className="mt-2 rounded bg-white/10 px-3 py-1.5 text-[12px] text-gray-200 hover:bg-white/20 focus:outline-none focus-visible:ring-1 focus-visible:ring-blue-500"
-                                title="No implementado"
                             >
                                 Registrarte
                             </button>
@@ -216,6 +218,13 @@ export default function LoginForm({ onLogin }: { onLogin?: (data: LoginData) => 
                             console.error("Error al guardar servidor MSSQL:", e);
                         }
                     }}
+                />
+            )}
+            {registerOpen && (
+                <RegisterModal
+                    open={registerOpen}
+                    serverIndex={serverIndex}
+                    onClose={() => setRegisterOpen(false)}
                 />
             )}
         </div>

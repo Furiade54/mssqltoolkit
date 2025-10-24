@@ -54,6 +54,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
     validateMSSQLUser: (creds) => ipcRenderer.invoke("mssql:validateUser", creds),
     runMSSQLQuery: (payload) => ipcRenderer.invoke("mssql:runQuery", payload),
     saveMSSQLConsulta: (payload) => ipcRenderer.invoke("mssql:saveConsulta", payload),
+    registerMSSQLUser: (payload) => ipcRenderer.invoke("mssql:registerUser", payload),
     ensureToolkit: (info) => ipcRenderer.invoke("mssql:ensureToolkit", info),
 });
 
