@@ -404,7 +404,7 @@ ipcMain.handle("mssql:testConnection", async (_event, info) => {
     }
 });
 
-// IPC: MSSQL validate user credentials in Opciones database
+// IPC: MSSQL validate user credentials in mssqltoolkit database
 ipcMain.handle("mssql:validateUser", async (_event, creds) => {
     const { username, password, encrypt = false, serverIndex, serverIp } = creds || {};
     const servers = readServersList();
@@ -429,7 +429,7 @@ ipcMain.handle("mssql:validateUser", async (_event, creds) => {
         port: Number.isFinite(portNum) && portNum > 0 ? portNum : 1433,
         user,
         password: pass,
-        database: "Opciones",
+        database: "mssqltoolkit",
         connectionTimeout: 7000,
         requestTimeout: 7000,
         options: {
@@ -437,14 +437,14 @@ ipcMain.handle("mssql:validateUser", async (_event, creds) => {
             trustServerCertificate: true,
         },
     };
-    log.info(`[mssql:validateUser] server=${server} port=${config.port} db=Opciones encrypt=${encrypt} user=${username} serverIndex=${idx}`);
+    log.info(`[mssql:validateUser] server=${server} port=${config.port} db=${config.database} encrypt=${encrypt} user=${username} serverIndex=${idx}`);
     try {
         await sql.connect(config);
         const request = new sql.Request();
         request.input("codigo", sql.VarChar, String(username || ""));
         request.input("clave", sql.VarChar, String(password || ""));
         const result = await request.query(
-            "SELECT Codigo, Clave FROM Opciones.dbo.GENUsuario WHERE Codigo = @codigo AND Clave = @clave"
+            "SELECT Codigo, Clave FROM dbo.GENUsuario WHERE Codigo = @codigo AND Clave = @clave"
         );
         await sql.close();
         const ok = Array.isArray(result?.recordset) && result.recordset.length > 0;
@@ -461,7 +461,7 @@ ipcMain.handle("mssql:validateUser", async (_event, creds) => {
 
 // IPC: MSSQL run arbitrary query using saved server (defaults to active)
 ipcMain.handle("mssql:runQuery", async (_event, payload) => {
-    const { sqlText, database = "Opciones", encrypt = false, serverIndex, serverIp } = payload || {};
+    const { sqlText, database = "mssqltoolkit", encrypt = false, serverIndex, serverIp } = payload || {};
     if (!sqlText || typeof sqlText !== "string" || !sqlText.trim()) {
         return { ok: false, error: "SQL inválido o vacío" };
     }
@@ -526,7 +526,7 @@ ipcMain.handle("mssql:runQuery", async (_event, payload) => {
     }
 });
 
-// IPC: MSSQL save or update consulta into Opciones.dbo.GENConsultas
+// IPC: MSSQL save or update consulta into dbo.GENConsultas (mssqltoolkit)
 ipcMain.handle("mssql:saveConsulta", async (_event, payload) => {
     const { codigoAplicacion = "8", descripcion, consulta, reporteAsociado = null, encrypt = false, serverIndex, serverIp } = payload || {};
     const cod = String(codigoAplicacion || "").trim();
@@ -562,7 +562,7 @@ ipcMain.handle("mssql:saveConsulta", async (_event, payload) => {
         port: Number.isFinite(portNum) && portNum > 0 ? portNum : 1433,
         user,
         password: pass,
-        database: "Opciones",
+        database: "mssqltoolkit",
         connectionTimeout: 15000,
         requestTimeout: 30000,
         options: {
@@ -587,19 +587,19 @@ ipcMain.handle("mssql:saveConsulta", async (_event, payload) => {
 
         // Check if exists
         const exists = await request.query(
-            "SELECT TOP 1 1 AS existsFlag FROM Opciones.dbo.GENConsultas WHERE CodigoAplicacion = @CodigoAplicacion AND Descripcion = @Descripcion"
+            "SELECT TOP 1 1 AS existsFlag FROM dbo.GENConsultas WHERE CodigoAplicacion = @CodigoAplicacion AND Descripcion = @Descripcion"
         );
         const hasRow = Array.isArray(exists?.recordset) && exists.recordset.length > 0;
 
         if (hasRow) {
             await request.query(
-                "UPDATE Opciones.dbo.GENConsultas SET Consulta = @Consulta, ReporteAsociado = @ReporteAsociado WHERE CodigoAplicacion = @CodigoAplicacion AND Descripcion = @Descripcion"
+                "UPDATE dbo.GENConsultas SET Consulta = @Consulta, ReporteAsociado = @ReporteAsociado WHERE CodigoAplicacion = @CodigoAplicacion AND Descripcion = @Descripcion"
             );
             await sql.close();
             return { ok: true, updated: true };
         } else {
             await request.query(
-                "INSERT INTO Opciones.dbo.GENConsultas (CodigoAplicacion, Descripcion, Consulta, ReporteAsociado) VALUES (@CodigoAplicacion, @Descripcion, @Consulta, @ReporteAsociado)"
+                "INSERT INTO dbo.GENConsultas (CodigoAplicacion, Descripcion, Consulta, ReporteAsociado) VALUES (@CodigoAplicacion, @Descripcion, @Consulta, @ReporteAsociado)"
             );
             await sql.close();
             return { ok: true, inserted: true };

@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## Unreleased — Cambio de base a mssqltoolkit
+
+- Changed
+  - Base MSSQL por defecto cambia de `Opciones` a `mssqltoolkit`.
+  - IPCs `mssql:validateUser`, `mssql:runQuery` y `mssql:saveConsulta` actualizados para usar `database: "mssqltoolkit"`.
+  - Consultas apuntan a `dbo.GENUsuario` y `dbo.GENConsultas` sin prefijar el nombre de la base en el SQL.
+- Docs
+  - Actualizado `docs/chat-summary.md` para reflejar el cambio de base.
+- Notes
+  - Requiere existencia de la base `mssqltoolkit` y tablas `dbo.GENUsuario` y `dbo.GENConsultas`.
+
 ## v0.0.10 — Instalación con UAC al actualizar
 
 - Changed

@@ -3,13 +3,13 @@
 Este documento resume los cambios, decisiones técnicas y flujos de uso implementados durante la sesión para la app Electron + React con soporte de conexión a SQL Server (MSSQL).
 
 ## Objetivo
-- Probar conectividad a MSSQL, validar credenciales de usuario contra la base `Opciones`, y gestionar múltiples servidores MSSQL (crear, editar, eliminar y seleccionar) desde la UI.
+- Probar conectividad a MSSQL, validar credenciales de usuario contra la base `mssqltoolkit`, y gestionar múltiples servidores MSSQL (crear, editar, eliminar y seleccionar) desde la UI.
 - Mejorar el soporte de depuración (DevTools) y exponer las capacidades al renderer con tipos actualizados.
 
 ## Cambios principales
 - Dependencia `mssql` instalada y usada desde el proceso `main` de Electron.
 - Handler IPC `mssql:testConnection` para probar conexión (deshabilita TLS por defecto, confía en certificado del servidor).
-- Handler IPC `mssql:validateUser` para validar credenciales usando `Opciones.dbo.GENUsuario` con parámetros `@codigo` y `@clave`.
+- Handler IPC `mssql:validateUser` para validar credenciales usando `dbo.GENUsuario` en la base `mssqltoolkit`, con parámetros `@codigo` y `@clave`.
 - Persitencia de servidores MSSQL en `servers.json` (ruta `app.getPath("userData")`).
 - IPCs para CRUD de servidores: `mssql:getServers`, `mssql:saveServer`, `mssql:updateServer`, `mssql:deleteServer`.
 - Exposición en `preload.cjs` de las APIs de aplicación, MSSQL y utilidades de ventana.
@@ -37,7 +37,7 @@ Este documento resume los cambios, decisiones técnicas y flujos de uso implemen
   - `mssql:deleteServer` → elimina un servidor por índice.
 - MSSQL utilidades:
   - `mssql:testConnection` → prueba de conectividad con IP/puerto/usuario/contraseña.
-  - `mssql:validateUser` → valida `username`/`password` en `Opciones.dbo.GENUsuario` (acepta `serverIndex` y `encrypt`).
+  - `mssql:validateUser` → valida `username`/`password` en `dbo.GENUsuario` de la base `mssqltoolkit` (acepta `serverIndex` y `encrypt`).
 
 ## API expuesta al renderer (preload)
 - App/ventana: `exit`, `minimize`, `maximizeToggle`, `close`, `toggleDevTools`, `getVersion`, `getMeta`.
@@ -70,7 +70,7 @@ Este documento resume los cambios, decisiones técnicas y flujos de uso implemen
 2) Seleccionar servidor y validar usuario
    - En el login, elige el servidor del dropdown.
    - Ingresa `Usuario` y `Contraseña` (p. ej., `jpaez` / `8978`).
-   - Pulsa “Ingresar” para validar contra `Opciones.dbo.GENUsuario`.
+   - Pulsa “Ingresar” para validar contra `mssqltoolkit.dbo.GENUsuario`.
 3) Depurar
    - Usa el menú “Toggle Developer Tools” para ver logs del renderer.
    - Revisa la consola de `electron-main` para logs de IPC (`mssql:...`).

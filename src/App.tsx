@@ -157,7 +157,7 @@ const App: React.FC = () => {
         setResultsError(null);
         setExecutingId(card.id);
         try {
-            const res = await window.electronAPI?.runMSSQLQuery?.({ sqlText: card.consulta, database: "Opciones", serverIp: currentServerIp ?? undefined });
+            const res = await window.electronAPI?.runMSSQLQuery?.({ sqlText: card.consulta, database: "mssqltoolkit", serverIp: currentServerIp ?? undefined });
             if (res?.ok) {
                 setResultsRows(res.rows || []);
                 setResultsCols(res.columns || []);
