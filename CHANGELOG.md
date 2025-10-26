@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.0.11 — Mejoras en RegisterModal y flujo de registro
+
+- Added / Changed
+  - RegisterModal: impedir cierre por clic fuera y bloqueo de `Escape`.
+  - Mensaje de éxito tras registrar y cierre automático a los 4s.
+  - Limpieza de campos y mensajes al cerrar y al reabrir el modal.
+  - Selector de servidor como primer campo, con carga desde `getMSSQLServers` y validación.
+- Fixed
+  - Correcciones de TypeScript y eliminación de marcadores de diff en `RegisterModal.tsx`.
+- Release
+  - Bump de versión a `v0.0.11` y creación de `docs/release-v0.0.11.md`.
+
 ## Unreleased — Cambio de base a mssqltoolkit
 
 - Changed
