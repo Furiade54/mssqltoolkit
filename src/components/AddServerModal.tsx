@@ -33,6 +33,11 @@ export default function AddServerModal({
     const [testOk, setTestOk] = React.useState<boolean | null>(null);
     const [editing, setEditing] = React.useState(false);
     const [saveError, setSaveError] = React.useState<string | null>(null);
+    const [deleting, setDeleting] = React.useState(false);
+    const suppressAutoSelectRef = React.useRef(false);
+    const nameInputRef = React.useRef<HTMLInputElement | null>(null);
+    const [banner, setBanner] = React.useState<string | null>(null);
+    const bannerTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
     if (!open) return null;
 
@@ -54,6 +59,28 @@ export default function AddServerModal({
         }
     }, [open, loadServers]);
 
+    // Asegurar que, si existe al menos un servidor (especialmente cuando hay solo uno),
+    // se seleccione automáticamente y se carguen los campos para edición/visualización.
+    React.useEffect(() => {
+        if (!open) return;
+        if (servers.length > 0 && (selectedIndex < 0 || selectedIndex >= servers.length)) {
+            if (suppressAutoSelectRef.current) {
+                // Saltar una vez el autoselect si venimos de “Nuevo”
+                suppressAutoSelectRef.current = false;
+            } else {
+                handleSelect(0);
+            }
+        }
+        // Cuando no hay servidores, dejar formulario en modo "Nuevo" y enfocar primer campo
+        if (servers.length === 0) {
+            if (selectedIndex !== -1) setSelectedIndex(-1);
+            if (!editing) {
+                clearForm();
+                setTimeout(() => nameInputRef.current?.focus(), 0);
+            }
+        }
+    }, [open, servers, selectedIndex]);
+
     function clearForm() {
         setName("");
         setIp("");
@@ -66,6 +93,31 @@ export default function AddServerModal({
         setEditing(true);
         setSaveError(null);
     }
+
+    function handleNew() {
+        // Evitar que el efecto de autoselección vuelva a seleccionar el índice 0
+        suppressAutoSelectRef.current = true;
+        clearForm();
+        // Reasignar foco a la ventana e inputs tras posibles diálogos previos
+        try { window.focus(); } catch {}
+        // Enfocar el primer campo para acelerar el alta
+        setTimeout(() => nameInputRef.current?.focus(), 0);
+    }
+
+    function showBanner(message: string) {
+        if (bannerTimerRef.current) {
+            clearTimeout(bannerTimerRef.current);
+            bannerTimerRef.current = null;
+        }
+        setBanner(message);
+        bannerTimerRef.current = setTimeout(() => setBanner(null), 2500);
+    }
+
+    React.useEffect(() => {
+        return () => {
+            if (bannerTimerRef.current) clearTimeout(bannerTimerRef.current);
+        };
+    }, []);
 
     async function handleSave() {
         // Validación: Nombre e IP son obligatorios
@@ -82,7 +134,29 @@ export default function AddServerModal({
                 setEditing(false);
             } else {
                 await onSave({ name, ip, port, user, password });
-                onClose();
+                // Mantener abierto el modal, recargar y seleccionar el recién creado
+                const list = await window.electronAPI?.getMSSQLServers?.();
+                const next = Array.isArray(list) ? list : [];
+                setServers(next);
+                if (next.length > 0) {
+                    const newIndex = next.length - 1;
+                    const ns = next[newIndex];
+                    setSelectedIndex(newIndex);
+                    setName(ns?.name || name);
+                    setIp(ns?.ip || ip);
+                    setPort(ns?.port || port);
+                    setUser(ns?.user || user);
+                    setPassword(ns?.password || password);
+                    setEditing(false);
+                    setTestMessage(null);
+                    setTestOk(null);
+                    setSaveError(null);
+                    showBanner("Servidor creado");
+                } else {
+                    // Si por alguna razón no se devolvió la lista, mantener datos actuales
+                    setEditing(false);
+                    showBanner("Servidor creado");
+                }
             }
         } finally {
             setSaving(false);
@@ -168,7 +242,7 @@ export default function AddServerModal({
                             <div className="flex items-center gap-2">
                                 <button
                                     type="button"
-                                    onClick={clearForm}
+                                    onClick={handleNew}
                                     className="rounded bg-white/10 px-2 py-1 text-[12px] text-gray-200 hover:bg-white/20 focus:outline-none focus-visible:ring-1 focus-visible:ring-blue-500"
                                 >
                                     Nuevo
@@ -176,12 +250,30 @@ export default function AddServerModal({
                                 {/* Botón Editar y Guardar cambios eliminados por redundancia */}
                                 <button
                                     type="button"
-                                    disabled={selectedIndex < 0}
+                                    disabled={selectedIndex < 0 || servers.length === 0 || loadingList || deleting}
+                                    title={servers.length === 0 ? "No hay servidores para eliminar" : (selectedIndex < 0 ? "Selecciona un servidor" : "Eliminar servidor")}
                                     onClick={async () => {
-                                        const res = await window.electronAPI?.deleteMSSQLServer?.(selectedIndex);
-                                        console.log("Servidor eliminado:", res);
-                                        await loadServers();
-                                        clearForm();
+                                        if (selectedIndex < 0 || servers.length === 0) return;
+                                        if (!servers[selectedIndex]) return;
+                                        try {
+                                            const deletingIndex = selectedIndex;
+                                            const s = servers[deletingIndex];
+                                            const label = s ? `${s.name?.trim() ? s.name : s.ip}:${s.port || "1433"}` : String(selectedIndex);
+                                            const ok = window.confirm(`¿Seguro que deseas eliminar el servidor "${label}"? Esta acción no se puede deshacer.`);
+                                            if (!ok) return;
+                                            setDeleting(true);
+                                            const res = await window.electronAPI?.deleteMSSQLServer?.(deletingIndex);
+                                            console.log("Servidor eliminado:", res);
+                                            // Mostrar banner breve y reiniciar tras 1s
+                                            showBanner("Servidor eliminado");
+                                            setTimeout(() => {
+                                                try { void window.electronAPI?.restartApp?.(); } catch {}
+                                            }, 1000);
+                                            return;
+                                        } catch (e) {
+                                            console.error("Error al eliminar servidor:", e);
+                                            setDeleting(false);
+                                        }
                                     }}
                                     className="rounded bg-white/10 px-2 py-1 text-[12px] text-gray-200 hover:bg-white/20 focus:outline-none focus-visible:ring-1 focus-visible:ring-blue-500 disabled:opacity-50"
                                 >
@@ -189,6 +281,9 @@ export default function AddServerModal({
                                 </button>
                             </div>
                         </div>
+                        {banner && (
+                            <div className="mb-2 text-[12px] text-green-400 pointer-events-none">{banner}</div>
+                        )}
                         <div className="rounded border border-white/10 bg-[#1f1f1f] p-2">
                             {servers.length === 0 ? (
                                 <p className="text-[12px] text-gray-400">No hay servidores guardados.</p>
@@ -220,6 +315,7 @@ export default function AddServerModal({
                             type="text"
                             value={name}
                             onChange={(e) => { setName(e.target.value); setSaveError(null); }}
+                            ref={nameInputRef}
                             disabled={!editing}
                             className="w-full rounded border border-white/10 bg-[#1f1f1f] px-3 py-2 text-[14px] text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
                             placeholder="Servidor Principal"

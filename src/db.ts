@@ -5,6 +5,7 @@ export type StoredCard = {
   subtitle?: string;
   value?: string; // store as string; UI can render it directly
   icon?: string;
+  database?: string; // target DB for execution
   codigoAplicacion: string;
   descripcion: string;
   consulta: string;

@@ -1,6 +1,8 @@
 import React from "react";
 import AddServerModal from "./AddServerModal";
 import RegisterModal from "./RegisterModal";
+// @ts-ignore
+import bgImage from "../../assets/MSSQLTK.png?asset";
 
 type LoginData = {
     username: string;
@@ -180,16 +182,26 @@ export default function LoginForm({ onLogin }: { onLogin?: (data: LoginData) => 
                     </form>
                 </div>
 
-                <aside className="p-4 border-t md:border-t-0 md:border-l border-black/40 bg-[#242424]">
+                <aside
+                    className="relative p-4 border-t md:border-t-0 md:border-l border-black/40 bg-[#242424]"
+                    style={{
+                        backgroundImage: `url(${bgImage})`,
+                        backgroundSize: "cover",
+                        backgroundPosition: "center",
+                        backgroundRepeat: "no-repeat",
+                    }}
+                >
+                    {/* Overlay para mejorar contraste sobre la imagen */}
+                    <div className="absolute inset-0 bg-black/45" />
                     <div className="flex h-full items-center justify-center">
-                        <div className="space-y-2 text-center">
-                            <p className="text-lg font-semibold text-white/30">¡Bienvenido de nuevo!</p>
-                            <p className="text-sm text-white/30">¿Aún no tienes una cuenta?</p>
-                            <p className="text-sm text-white/30">Haz clic aquí para registrarte.</p>
+                        <div className="relative z-10 space-y-2 text-center">
+                            <p className="text-lg font-semibold text-white">¡Bienvenido de nuevo!</p>
+                            <p className="text-sm text-white">¿Aún no tienes una cuenta?</p>
+                            <p className="text-sm text-white">Haz clic aquí para registrarte.</p>
                             <button
                                 type="button"
                                 onClick={() => setRegisterOpen(true)}
-                                className="mt-2 rounded bg-white/10 px-3 py-1.5 text-[12px] text-gray-200 hover:bg-white/20 focus:outline-none focus-visible:ring-1 focus-visible:ring-blue-500"
+                                className="mt-2 rounded bg-white/10 px-3 py-1.5 text-[12px] text-white hover:bg-white/20 focus:outline-none focus-visible:ring-1 focus-visible:ring-blue-500"
                             >
                                 Registrarte
                             </button>
@@ -213,7 +225,6 @@ export default function LoginForm({ onLogin }: { onLogin?: (data: LoginData) => 
                             const list = await window.electronAPI?.getMSSQLServers?.();
                             setServers(list || []);
                             if (list && list.length > 0) setServerIndex(list.length - 1);
-                            setAddServerOpen(false);
                         } catch (e) {
                             console.error("Error al guardar servidor MSSQL:", e);
                         }

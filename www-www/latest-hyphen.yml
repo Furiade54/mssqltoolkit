@@ -1,0 +1,9 @@
+﻿version: 0.0.11
+files:
+  - url: MSSQL-Tool-Kit-0.0.11-Setup.exe
+    sha512: RkNxQFJlb1HSohzxlVgOE6AnO+oTDxAiWU7JjdiEhjZDlBYXG3UtNGUDfIPSH5KfrkDBbpbTSac4yqFaX7XTBw==
+    size: 83591308
+path: MSSQL-Tool-Kit-0.0.11-Setup.exe
+sha512: RkNxQFJlb1HSohzxlVgOE6AnO+oTDxAiWU7JjdiEhjZDlBYXG3UtNGUDfIPSH5KfrkDBbpbTSac4yqFaX7XTBw==
+releaseDate: '2025-10-27T15:10:43.4062350Z'
+

@@ -8,6 +8,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
     toggleDevTools: () => ipcRenderer.send("window:devtools-toggle"),
     reload: () => ipcRenderer.send("window:reload"),
     forceReload: () => ipcRenderer.send("window:force-reload"),
+    restartApp: () => ipcRenderer.invoke("app:relaunch"),
     getVersion: () => ipcRenderer.invoke("app:getVersion"),
     getMeta: () => ipcRenderer.invoke("app:getMeta"),
     // AutoUpdate API (seguro)
@@ -53,7 +54,11 @@ contextBridge.exposeInMainWorld("electronAPI", {
     testMSSQLConnection: (info) => ipcRenderer.invoke("mssql:testConnection", info),
     validateMSSQLUser: (creds) => ipcRenderer.invoke("mssql:validateUser", creds),
     runMSSQLQuery: (payload) => ipcRenderer.invoke("mssql:runQuery", payload),
+    listMSSQLDatabases: (payload) => ipcRenderer.invoke("mssql:listDatabases", payload),
     saveMSSQLConsulta: (payload) => ipcRenderer.invoke("mssql:saveConsulta", payload),
+    loadMSSQLConsultas: (payload) => ipcRenderer.invoke("mssql:loadConsultas", payload),
+    updateMSSQLConsulta: (payload) => ipcRenderer.invoke("mssql:updateConsulta", payload),
+    deleteMSSQLConsulta: (payload) => ipcRenderer.invoke("mssql:deleteConsulta", payload),
     registerMSSQLUser: (payload) => ipcRenderer.invoke("mssql:registerUser", payload),
     ensureToolkit: (info) => ipcRenderer.invoke("mssql:ensureToolkit", info),
 });

@@ -337,7 +337,7 @@ export function MenuBar({
 	return (
 		<div
 			ref={menubarRef}
-			className="relative flex h-8 items-center gap-1 border-b border-black/50 bg-[#2d2d2d] px-2 select-none"
+			className="relative z-[60] flex h-8 items-center gap-1 border-b border-black/50 bg-[#2d2d2d] px-2 select-none"
 			style={{ WebkitAppRegion: "drag" } as DraggableStyle }
 			role="menubar"
 			aria-label="Application menu bar"

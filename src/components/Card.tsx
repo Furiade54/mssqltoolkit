@@ -59,7 +59,14 @@ export default function Card({
         <>
           <div className="flex items-start justify-between">
             <div>
-              <p className="text-[12px] text-gray-400">{title}</p>
+              <div className="flex items-center gap-2">
+                <p className="text-[12px] text-gray-400">{title}</p>
+                {typeLabel && (
+                  <span className="inline-flex items-center rounded-full border border-emerald-500/30 bg-emerald-600/15 px-2 py-[2px] text-[11px] text-emerald-400">
+                    BD: {typeLabel}
+                  </span>
+                )}
+              </div>
               {subtitle && <p className="text-[12px] text-gray-500">{subtitle}</p>}
             </div>
             <div className="grid h-8 w-8 place-items-center rounded bg-white/5 text-gray-300">

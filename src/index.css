@@ -7,6 +7,59 @@ html, body, #root {
 }
 
 body {
-	margin: 0;
+    margin: 0;
+}
+
+/* macOS-like scrollbars across the app */
+:root {
+  --sb-size: 8px;
+  --sb-thumb: rgba(148, 163, 184, 0.45); /* slate-400 @ 45% */
+  --sb-thumb-hover: rgba(203, 213, 225, 0.7); /* slate-300 @ 70% */
+}
+
+/* Firefox */
+* {
+  scrollbar-width: thin;              /* thin track */
+  scrollbar-color: var(--sb-thumb) transparent; /* pill on transparent track */
+}
+
+/* Chromium/WebKit (Electron/Chrome/Edge) */
+*::-webkit-scrollbar {
+  width: var(--sb-size);
+  height: var(--sb-size);
+}
+*::-webkit-scrollbar-track {
+  background: transparent;            /* overlay feel */
+}
+*::-webkit-scrollbar-thumb {
+  background-color: var(--sb-thumb);
+  border-radius: 9999px;              /* fully rounded */
+  border: 2px solid transparent;      /* inner padding, slimmer look */
+  background-clip: content-box;       /* keep the pill shape */
+}
+*::-webkit-scrollbar-thumb:hover {
+  background-color: var(--sb-thumb-hover);
+}
+*::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* Marquee animation for SQL preview */
+@keyframes marquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+.animate-marquee {
+  display: inline-flex;
+  gap: 32px;
+  animation: marquee 20s linear infinite;
+  will-change: transform;
+}
+.animate-marquee:hover {
+  animation-play-state: paused;
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-marquee { animation: none; }
 }
 

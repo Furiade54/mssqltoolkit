@@ -1,0 +1,29 @@
+directories:
+  output: dist-release
+  buildResources: build
+appId: com.mssqltoolkit.app
+productName: MSSQL Tool Kit
+files:
+  - filter:
+      - dist/**
+      - electron-main.cjs
+      - preload.cjs
+      - package.json
+asar: true
+win:
+  target:
+    - nsis
+  artifactName: ${productName}-${version}-Setup.${ext}
+nsis:
+  oneClick: false
+  perMachine: true
+  allowElevation: true
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  shortcutName: MSSQL Tool Kit
+publish:
+  - provider: github
+    owner: Furiade54
+    repo: mssqltoolkit
+    releaseType: release
+electronVersion: 31.7.7

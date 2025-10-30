@@ -124,6 +124,90 @@ async function createWindow() {
 		},
 	});
 
+// IPC: MSSQL update consulta by ID
+ipcMain.handle("mssql:updateConsulta", async (event, payload) => {
+    const { id, descripcion, consulta, reporteAsociado, baseDatos } = payload || {};
+    if (!id || !descripcion?.trim() || !consulta?.trim()) {
+        return { ok: false, error: "Faltan campos obligatorios: id, descripcion, consulta." };
+    }
+
+    const { server, config, idx } = await getActiveServerConfig(payload);
+    if (!server) return { ok: false, error: "No hay servidor activo configurado." };
+
+    log.info(`[mssql:updateConsulta] server=${server} port=${config.port} db=${config.database} idx=${idx}`);
+
+    try {
+        await sql.connect(config);
+        const request = new sql.Request();
+        const codigoUsuario = String(activeUsername || "").trim();
+        if (!codigoUsuario) {
+            await sql.close();
+            return { ok: false, error: "Sesión no autenticada: falta CodigoUsuario activo." };
+        }
+
+        request.input("Id", sql.Int, parseInt(id));
+        request.input("Descripcion", sql.NVarChar(255), descripcion.trim());
+        request.input("Consulta", sql.NText, consulta.trim());
+        request.input("ReporteAsociado", sql.NVarChar(255), reporteAsociado?.trim() || null);
+        request.input("BaseDatos", sql.NVarChar(100), baseDatos || "mssqltoolkit");
+        request.input("CodigoUsuario", sql.NVarChar(50), codigoUsuario);
+
+        const result = await request.query(
+            "UPDATE dbo.GENConsultas SET Descripcion = @Descripcion, Consulta = @Consulta, ReporteAsociado = @ReporteAsociado, BaseDatos = @BaseDatos WHERE Id = @Id AND CodigoUsuario = @CodigoUsuario"
+        );
+        
+        await sql.close();
+        if (result.rowsAffected[0] === 0) {
+            return { ok: false, error: "No se encontró la consulta o no tienes permisos para editarla." };
+        }
+        return { ok: true };
+    } catch (e) {
+        try { await sql.close(); } catch {}
+        log.error(`[mssql:updateConsulta] ERROR: ${String(e?.message || e)}`);
+        return { ok: false, error: String(e?.message || e) };
+    }
+});
+
+// IPC: MSSQL delete consulta by ID
+ipcMain.handle("mssql:deleteConsulta", async (event, payload) => {
+    const { id } = payload || {};
+    if (!id) {
+        return { ok: false, error: "Falta el ID de la consulta a eliminar." };
+    }
+
+    const { server, config, idx } = await getActiveServerConfig(payload);
+    if (!server) return { ok: false, error: "No hay servidor activo configurado." };
+
+    log.info(`[mssql:deleteConsulta] server=${server} port=${config.port} db=${config.database} idx=${idx}`);
+
+    try {
+        await sql.connect(config);
+        const request = new sql.Request();
+        const codigoUsuario = String(activeUsername || "").trim();
+        if (!codigoUsuario) {
+            await sql.close();
+            return { ok: false, error: "Sesión no autenticada: falta CodigoUsuario activo." };
+        }
+
+        request.input("Id", sql.Int, parseInt(id));
+        request.input("CodigoUsuario", sql.NVarChar(50), codigoUsuario);
+
+        const result = await request.query(
+            "DELETE FROM dbo.GENConsultas WHERE Id = @Id AND CodigoUsuario = @CodigoUsuario"
+        );
+        
+        await sql.close();
+        if (result.rowsAffected[0] === 0) {
+            return { ok: false, error: "No se encontró la consulta o no tienes permisos para eliminarla." };
+        }
+        return { ok: true };
+    } catch (e) {
+        try { await sql.close(); } catch {}
+        log.error(`[mssql:deleteConsulta] ERROR: ${String(e?.message || e)}`);
+        return { ok: false, error: String(e?.message || e) };
+    }
+});
+
 	const isDev = !app.isPackaged;
 	const devServerURL = process.env.VITE_DEV_SERVER_URL || "http://localhost:5173";
 
@@ -210,6 +294,25 @@ ipcMain.handle("app:getMeta", () => {
     }
 });
 
+// IPC: relaunch / restart app
+ipcMain.handle("app:relaunch", async () => {
+  try {
+    if (app.isPackaged) {
+      app.relaunch();
+      app.exit(0);
+    } else {
+      const win = BrowserWindow.getFocusedWindow() || mainWindow;
+      if (win) {
+        try { win.webContents.reloadIgnoringCache(); } catch {}
+      }
+    }
+    return { ok: true };
+  } catch (e) {
+    log.error("Error en app:relaunch:", e);
+    return { ok: false, error: String(e?.message || e) };
+  }
+});
+
 // IPC: window controls
 ipcMain.on("window:minimize", () => {
     const win = BrowserWindow.getFocusedWindow() || mainWindow;
@@ -290,6 +393,46 @@ function findServerIndexByIp(ip, servers) {
         if (String(list[i]?.ip || "").trim() === needle) return i;
     }
     return -1;
+}
+
+// Helper: resolve active server configuration consistently
+function getActiveServerConfig(opts = {}) {
+    const { encrypt = false, serverIndex, serverIp } = opts || {};
+    const servers = readServersList();
+    if (!servers || servers.length === 0) {
+        return { server: null, config: null, idx: -1 };
+    }
+
+    let idx = -1;
+    if (serverIp) {
+        idx = findServerIndexByIp(serverIp, servers);
+    }
+    if (!Number.isFinite(idx) || idx < 0) {
+        idx = typeof serverIndex === "number" ? serverIndex : (Number.isFinite(activeServerIndex) && activeServerIndex >= 0 ? activeServerIndex : servers.length - 1);
+    }
+    if (!Number.isFinite(idx) || idx < 0 || idx >= servers.length) idx = servers.length - 1;
+
+    const target = servers[idx] || {};
+    const server = String(target.ip || "").trim();
+    const portNum = target?.port !== undefined && target?.port !== null ? Number(target.port) : 1433;
+    const user = String(target.user || "").trim();
+    const pass = String(target.password || "").trim();
+
+    const config = {
+        server,
+        port: Number.isFinite(portNum) && portNum > 0 ? portNum : 1433,
+        user,
+        password: pass,
+        database: "mssqltoolkit",
+        connectionTimeout: 15000,
+        requestTimeout: 30000,
+        options: {
+            encrypt: !!encrypt,
+            trustServerCertificate: true,
+        },
+    };
+
+    return { server, config, idx };
 }
 
 ipcMain.handle("mssql:getServers", () => {
@@ -531,13 +674,62 @@ ipcMain.handle("mssql:runQuery", async (_event, payload) => {
     }
 });
 
+// IPC: listar bases de datos disponibles en el servidor activo o indicado
+ipcMain.handle("mssql:listDatabases", async (_event, payload) => {
+    const { encrypt = false, serverIndex, serverIp } = payload || {};
+    const servers = readServersList();
+    if (!servers || servers.length === 0) {
+        return { ok: false, error: "No hay servidor MSSQL configurado. Agrega uno primero." };
+    }
+    let idx = -1;
+    if (serverIp) {
+        idx = findServerIndexByIp(serverIp, servers);
+    }
+    if (!Number.isFinite(idx) || idx < 0) {
+        idx = typeof serverIndex === "number" ? serverIndex : (Number.isFinite(activeServerIndex) && activeServerIndex >= 0 ? activeServerIndex : servers.length - 1);
+    }
+    if (!Number.isFinite(idx) || idx < 0 || idx >= servers.length) idx = servers.length - 1;
+
+    const target = servers[idx];
+    const server = String(target?.ip || "").trim();
+    const portNum = target?.port !== undefined && target?.port !== null ? Number(target.port) : 1433;
+    const user = String(target?.user || "").trim();
+    const pass = String(target?.password || "").trim();
+
+    const baseConfig = {
+        server,
+        port: Number.isFinite(portNum) && portNum > 0 ? portNum : 1433,
+        user,
+        password: pass,
+        connectionTimeout: 10000,
+        requestTimeout: 20000,
+        options: {
+            encrypt: !!encrypt,
+            trustServerCertificate: true,
+        },
+    };
+
+    try {
+        await sql.connect({ ...baseConfig, database: "master" });
+        const result = await sql.query("SELECT name FROM sys.databases WITH (NOLOCK) ORDER BY name ASC");
+        await sql.close();
+        const names = Array.isArray(result?.recordset) ? result.recordset.map((r) => String(r.name)) : [];
+        return { ok: true, databases: names };
+    } catch (e) {
+        try { await sql.close(); } catch {}
+        log.error(`[mssql:listDatabases] ERROR: ${String(e?.message || e)}`);
+        return { ok: false, error: String(e?.message || e) };
+    }
+});
+
 // IPC: MSSQL save or update consulta into dbo.GENConsultas (mssqltoolkit)
 ipcMain.handle("mssql:saveConsulta", async (_event, payload) => {
-    const { codigoAplicacion = "8", descripcion, consulta, reporteAsociado = null, encrypt = false, serverIndex, serverIp } = payload || {};
+    const { codigoAplicacion = "8", descripcion, consulta, reporteAsociado = null, baseDatos = null, encrypt = false, serverIndex, serverIp } = payload || {};
     const cod = String(codigoAplicacion || "").trim();
     const desc = String(descripcion || "").trim();
     const sqlText = typeof consulta === "string" ? consulta : String(consulta ?? "");
     const rep = reporteAsociado === null || reporteAsociado === undefined ? null : String(reporteAsociado);
+    const bd = baseDatos === null || baseDatos === undefined ? null : String(baseDatos);
 
     if (!cod || cod.length > 2) return { ok: false, error: "CodigoAplicacion inválido" };
     if (!desc || desc.length > 50) return { ok: false, error: "Descripcion inválida o demasiado larga (<=50)" };
@@ -605,6 +797,11 @@ ipcMain.handle("mssql:saveConsulta", async (_event, payload) => {
         } else {
             request.input("ReporteAsociado", sql.VarChar(sql.MAX), rep);
         }
+        if (bd === null) {
+            request.input("BaseDatos", sql.NVarChar(100), null);
+        } else {
+            request.input("BaseDatos", sql.NVarChar(100), bd);
+        }
     
         // Check if exists
         const exists = await request.query(
@@ -614,13 +811,13 @@ ipcMain.handle("mssql:saveConsulta", async (_event, payload) => {
     
         if (hasRow) {
             await request.query(
-                "UPDATE dbo.GENConsultas SET Consulta = @Consulta, ReporteAsociado = @ReporteAsociado, CodigoUsuario = @CodigoUsuario WHERE CodigoAplicacion = @CodigoAplicacion AND Descripcion = @Descripcion"
+                "UPDATE dbo.GENConsultas SET Consulta = @Consulta, ReporteAsociado = @ReporteAsociado, CodigoUsuario = @CodigoUsuario, BaseDatos = @BaseDatos WHERE CodigoAplicacion = @CodigoAplicacion AND Descripcion = @Descripcion"
             );
             await sql.close();
             return { ok: true, updated: true };
         } else {
             await request.query(
-                "INSERT INTO dbo.GENConsultas (CodigoAplicacion, Descripcion, Consulta, ReporteAsociado, CodigoUsuario) VALUES (@CodigoAplicacion, @Descripcion, @Consulta, @ReporteAsociado, @CodigoUsuario)"
+                "INSERT INTO dbo.GENConsultas (CodigoAplicacion, Descripcion, Consulta, ReporteAsociado, CodigoUsuario, BaseDatos) VALUES (@CodigoAplicacion, @Descripcion, @Consulta, @ReporteAsociado, @CodigoUsuario, @BaseDatos)"
             );
             await sql.close();
             return { ok: true, inserted: true };
@@ -691,9 +888,16 @@ ipcMain.handle("mssql:ensureToolkit", async (_event, info) => {
             "Consulta NVARCHAR(MAX) NOT NULL, " +
             "ReporteAsociado NVARCHAR(200) NULL, " +
             "CodigoUsuario NVARCHAR(50) NOT NULL, " +
+            "BaseDatos NVARCHAR(100) NULL, " +
             "FechaCreacion DATETIME2 DEFAULT SYSDATETIME(), " +
             "CONSTRAINT FK_GENConsultas_GENUsuario FOREIGN KEY (CodigoUsuario) REFERENCES dbo.GENUsuario(Codigo) ON DELETE NO ACTION ON UPDATE NO ACTION" +
             ") END"
+        );
+        // Migración: añadir columna BaseDatos si no existe (para tablas existentes)
+        await sql.query(
+            "IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[GENConsultas]') AND name = N'BaseDatos') BEGIN " +
+            "ALTER TABLE [dbo].[GENConsultas] ADD BaseDatos NVARCHAR(100) NULL " +
+            "END"
         );
         // Índice único en GENConsultas
         await sql.query(
@@ -797,6 +1001,69 @@ ipcMain.handle("mssql:registerUser", async (_event, payload) => {
     } catch (e) {
         try { await sql.close(); } catch {}
         log.error(`[mssql:registerUser] ERROR: ${String(e?.message || e)}`);
+        return { ok: false, error: String(e?.message || e) };
+    }
+});
+
+// IPC: MSSQL load consultas from dbo.GENConsultas (mssqltoolkit)
+ipcMain.handle("mssql:loadConsultas", async (_event, payload) => {
+    const { encrypt = false, serverIndex, serverIp } = payload || {};
+
+    const servers = readServersList();
+    if (!servers || servers.length === 0) {
+        return { ok: false, error: "No hay servidor MSSQL configurado. Agrega uno primero." };
+    }
+    let idx = -1;
+    if (serverIp) {
+        idx = findServerIndexByIp(serverIp, servers);
+    }
+    if (!Number.isFinite(idx) || idx < 0) {
+        idx = typeof serverIndex === "number" ? serverIndex : (Number.isFinite(activeServerIndex) && activeServerIndex >= 0 ? activeServerIndex : servers.length - 1);
+    }
+    if (!Number.isFinite(idx) || idx < 0 || idx >= servers.length) idx = servers.length - 1;
+
+    const target = servers[idx];
+    const server = String(target?.ip || "").trim();
+    const portNum = target?.port !== undefined && target?.port !== null ? Number(target.port) : 1433;
+    const pass = String(target?.password || "").trim();
+    const user = String(target?.user || "").trim();
+
+    const config = {
+        server,
+        port: Number.isFinite(portNum) && portNum > 0 ? portNum : 1433,
+        user,
+        password: pass,
+        database: "mssqltoolkit",
+        connectionTimeout: 15000,
+        requestTimeout: 30000,
+        options: {
+            encrypt: !!encrypt,
+            trustServerCertificate: true,
+        },
+    };
+
+    log.info(`[mssql:loadConsultas] server=${server} port=${config.port} db=${config.database} idx=${idx}`);
+
+    try {
+        await sql.connect(config);
+        const request = new sql.Request();
+        const codigoUsuario = String(activeUsername || "").trim();
+        if (!codigoUsuario) {
+            await sql.close();
+            return { ok: false, error: "Sesión no autenticada: falta CodigoUsuario activo." };
+        }
+
+        request.input("CodigoUsuario", sql.NVarChar(50), codigoUsuario);
+        const result = await request.query(
+            "SELECT Id, CodigoAplicacion, Descripcion, Consulta, ReporteAsociado, BaseDatos, FechaCreacion FROM dbo.GENConsultas WHERE CodigoUsuario = @CodigoUsuario ORDER BY FechaCreacion DESC"
+        );
+        
+        await sql.close();
+        const consultas = Array.isArray(result?.recordset) ? result.recordset : [];
+        return { ok: true, consultas };
+    } catch (e) {
+        try { await sql.close(); } catch {}
+        log.error(`[mssql:loadConsultas] ERROR: ${String(e?.message || e)}`);
         return { ok: false, error: String(e?.message || e) };
     }
 });

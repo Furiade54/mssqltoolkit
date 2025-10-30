@@ -10,7 +10,8 @@ declare global {
 			toggleDevTools: () => void;
             reload: () => void;
             forceReload: () => void;
-			getVersion: () => Promise<string>;
+            restartApp: () => Promise<{ ok: boolean; error?: string }>;
+            getVersion: () => Promise<string>;
 			getMeta: () => Promise<{ version: string; license: string; createdAt: string }>;
 			autoUpdate?: {
 				checkForUpdates: () => Promise<any>;
@@ -29,7 +30,11 @@ declare global {
 			testMSSQLConnection: (info: { ip?: string; server?: string; port?: string | number; user?: string; password?: string }) => Promise<{ ok: boolean; error?: string }>;
             validateMSSQLUser: (creds: { username: string; password: string; encrypt?: boolean; serverIndex?: number; serverIp?: string }) => Promise<{ ok: boolean; error?: string }>;
             runMSSQLQuery: (payload: { sqlText: string; database?: string; encrypt?: boolean; serverIndex?: number; serverIp?: string }) => Promise<{ ok: boolean; rows?: any[]; columns?: string[]; count?: number; error?: string }>;
-            saveMSSQLConsulta: (payload: { codigoAplicacion?: string; descripcion: string; consulta: string; reporteAsociado?: string | null; encrypt?: boolean; serverIndex?: number; serverIp?: string }) => Promise<{ ok: boolean; inserted?: boolean; updated?: boolean; error?: string }>;
+            listMSSQLDatabases: (payload?: { encrypt?: boolean; serverIndex?: number; serverIp?: string }) => Promise<{ ok: boolean; databases?: string[]; error?: string }>;
+            saveMSSQLConsulta: (payload: { codigoAplicacion?: string; descripcion: string; consulta: string; reporteAsociado?: string | null; baseDatos?: string | null; encrypt?: boolean; serverIndex?: number; serverIp?: string }) => Promise<{ ok: boolean; inserted?: boolean; updated?: boolean; error?: string }>;
+            loadMSSQLConsultas: (payload?: { encrypt?: boolean; serverIndex?: number; serverIp?: string }) => Promise<{ ok: boolean; consultas?: Array<{ Id: number; CodigoAplicacion: string; Descripcion: string; Consulta: string; ReporteAsociado?: string; BaseDatos?: string; FechaCreacion: string }>; error?: string }>;
+      updateMSSQLConsulta: (payload: { id: string; descripcion: string; consulta: string; reporteAsociado?: string | null; baseDatos?: string; serverIp?: string }) => Promise<{ ok: boolean; error?: string }>;
+      deleteMSSQLConsulta: (payload: { id: string; serverIp?: string }) => Promise<{ ok: boolean; error?: string }>;
             registerMSSQLUser: (payload: { username: string; password: string; nombre?: string | null; activo?: boolean; encrypt?: boolean; serverIndex?: number; serverIp?: string }) => Promise<{ ok: boolean; inserted?: boolean; error?: string }>;
             ensureToolkit: (info: { ip?: string; server?: string; port?: string | number; user?: string; password?: string; encrypt?: boolean }) => Promise<{ ok: boolean; databaseExisted?: boolean; databaseCreated?: boolean; tables?: { GENUsuario: boolean; GENConsultas: boolean }; indexes?: { UX_GENConsultas_Codigo_Descripcion: boolean; IX_GENConsultas_CodigoUsuario: boolean }; seededAdmin?: boolean; error?: string }>;
 		};
